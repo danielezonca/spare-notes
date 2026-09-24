@@ -14,12 +14,6 @@ Extracted from design-notes.md decisions.
 | **Overlay ConfigMap mount** | maas-api pod needs the Grid overlay ConfigMap mounted (same volume mount the Grid Gateway already uses). Deployment/Helm change only. | Phase 1 | Small |
 | **Region in tenant config** | `AITenant` or `MaasTenantConfig` CRD needs a `region` field (or equivalent). maas-api reads this during validation to return the tenant's geo region. Requires CRD schema change + controller update. | Phase 2 | Medium |
 
-> **Note**: Per-user quota and usage endpoints (`PATCH /admin/quotas`,
-> `GET /admin/usage`, `GET /v1/usage/me`, `GET /v1/quota/me`) are
-> Pricetag dogfood concerns (metering-service), not Grid scope.
-> In the Grid architecture, quota is managed via `MaaSSubscription.tokenRateLimits`
-> (CRD-driven) and usage dashboards via Thanos/Grafana (ACM observability).
-
 ## Praxis AI (ai repo)
 
 | Gap | Description | Phase | Effort |
