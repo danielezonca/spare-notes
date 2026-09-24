@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Grid — Tenant User Flows</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0d1117;color:#e6edf3;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,sans-serif;display:flex;justify-content:center;padding:24px}
+.wrap{width:100%;max-width:1500px}
+h1{font-size:20px;font-weight:600;color:#e6edf3;margin-bottom:4px;text-align:center}
+.sub{text-align:center;color:#8b949e;font-size:13px;margin-bottom:20px}
+svg{width:100%;height:auto;display:block}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>AI Grid — Tenant User Flows</h1>
+<p class="sub">Self-service + inference &middot; Same API key everywhere &middot; All clusters equivalent &middot; Hub = DNS designation</p>
+
+<svg viewBox="0 0 1400 860" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <marker id="ah-blue" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="none" stroke="#58a6ff" stroke-width="1.2"/></marker>
+  <marker id="ah-green" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="none" stroke="#3fb950" stroke-width="1.2"/></marker>
+  <marker id="ah-purple" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="none" stroke="#bc8cff" stroke-width="1.2"/></marker>
+  <marker id="ah-teal" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="none" stroke="#39d2c0" stroke-width="1.2"/></marker>
+  <marker id="ah-amber" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="none" stroke="#d29922" stroke-width="1.2"/></marker>
+  <marker id="ah-red" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="none" stroke="#f85149" stroke-width="1.2"/></marker>
+  <filter id="sh" x="-4%" y="-4%" width="108%" height="108%"><feDropShadow dx="0" dy="1" stdDeviation="2" flood-color="#000" flood-opacity="0.4"/></filter>
+</defs>
+
+<!-- ═══════════════════════════════════════════
+     TENANT USER
+     ═══════════════════════════════════════════ -->
+<rect x="80" y="16" width="220" height="55" rx="8" fill="#1a3050" stroke="#58a6ff" stroke-width="1.5" filter="url(#sh)"/>
+<text x="190" y="34" text-anchor="middle" fill="#58a6ff" font-size="9" font-weight="600" letter-spacing="0.5">TENANT USER</text>
+<text x="190" y="50" text-anchor="middle" fill="#e6edf3" font-size="12" font-weight="700">Engineer</text>
+<text x="190" y="63" text-anchor="middle" fill="#8b949e" font-size="8">Claude Code · Codex CLI · SDKs</text>
+
+<!-- ═══════════════════════════════════════════
+     TWO DNS ENTRIES
+     ═══════════════════════════════════════════ -->
+<rect x="60" y="90" width="130" height="28" rx="4" fill="#0d1a2a" stroke="#d29922" stroke-width="1" filter="url(#sh)"/>
+<text x="125" y="108" text-anchor="middle" fill="#d29922" font-size="8" font-weight="600">portal.example.com</text>
+<text x="125" y="116" text-anchor="middle" fill="#6e7681" font-size="6">self-service</text>
+
+<rect x="200" y="90" width="130" height="28" rx="4" fill="#0d1a2a" stroke="#58a6ff" stroke-width="1" filter="url(#sh)"/>
+<text x="265" y="108" text-anchor="middle" fill="#58a6ff" font-size="8" font-weight="600">ai-gateway.example.com</text>
+<text x="265" y="116" text-anchor="middle" fill="#6e7681" font-size="6">inference</text>
+
+<!-- user → DNS entries -->
+<path d="M150,71 L125,86" fill="none" stroke="#d29922" stroke-width="1.2" marker-end="url(#ah-amber)"/>
+<path d="M230,71 L265,86" fill="none" stroke="#58a6ff" stroke-width="1.2" marker-end="url(#ah-blue)"/>
+
+<!-- ═══════════════════════════════════════════
+     CLUSTER A — HUB (portal + inference)
+     ═══════════════════════════════════════════ -->
+<rect x="40" y="140" width="480" height="490" rx="10" fill="#161b22" fill-opacity="0.3" stroke="#3fb950" stroke-width="2" stroke-dasharray="8,4"/>
+<text x="56" y="158" fill="#3fb950" font-size="9" font-weight="600">CLUSTER A · us-east-1 · HUB (DNS)</text>
+<text x="460" y="158" text-anchor="end" fill="#3fb950" font-size="7">portal + inference</text>
+
+<!-- Tenant User UI -->
+<rect x="65" y="170" width="200" height="45" rx="6" fill="#2a1f0d" stroke="#d29922" stroke-width="1.5" filter="url(#sh)"/>
+<text x="165" y="186" text-anchor="middle" fill="#d29922" font-size="8" font-weight="600">TENANT USER UI</text>
+<text x="165" y="200" text-anchor="middle" fill="#e6edf3" font-size="10" font-weight="600">Self-service Portal</text>
+<text x="165" y="210" text-anchor="middle" fill="#6e7681" font-size="7">DevHub / Backstage</text>
+
+<!-- portal DNS → User UI -->
+<path d="M125,118 L150,166" fill="none" stroke="#d29922" stroke-width="1.2" marker-end="url(#ah-amber)"/>
+
+<!-- maas-api A -->
+<rect x="65" y="230" width="200" height="50" rx="6" fill="#1c1340" stroke="#8957e5" stroke-width="1.5" filter="url(#sh)"/>
+<text x="165" y="246" text-anchor="middle" fill="#8957e5" font-size="8" font-weight="600">MAAS API</text>
+<text x="165" y="262" text-anchor="middle" fill="#e6edf3" font-size="11" font-weight="600">maas-api</text>
+<text x="165" y="274" text-anchor="middle" fill="#6e7681" font-size="7">Models · Keys · Subscriptions · Usage</text>
+
+<!-- Portal → maas-api -->
+<path d="M165,215 L165,226" fill="none" stroke="#8957e5" stroke-width="1.2" marker-end="url(#ah-purple)"/>
+
+<!-- Self-service API list -->
+<rect x="280" y="170" width="225" height="120" rx="6" fill="#161b22" stroke="#30363d" stroke-width="1"/>
+<text x="392" y="188" text-anchor="middle" fill="#e6edf3" font-size="9" font-weight="600">Self-service APIs (maas-api)</text>
+
+<text x="295" y="206" fill="#3fb950" font-size="8" font-weight="600">●</text>
+<text x="308" y="206" fill="#e6edf3" font-size="8">GET /v1/models</text>
+<text x="410" y="206" fill="#6e7681" font-size="7">all sites via overlay</text>
+
+<text x="295" y="222" fill="#58a6ff" font-size="8" font-weight="600">●</text>
+<text x="308" y="222" fill="#e6edf3" font-size="8">POST /v1/api-keys</text>
+<text x="420" y="222" fill="#6e7681" font-size="7">bound to subscription</text>
+
+<text x="295" y="238" fill="#58a6ff" font-size="8" font-weight="600">●</text>
+<text x="308" y="238" fill="#e6edf3" font-size="8">POST /v1/api-keys/search</text>
+<text x="452" y="238" fill="#6e7681" font-size="7">list own</text>
+
+<text x="295" y="254" fill="#58a6ff" font-size="8" font-weight="600">●</text>
+<text x="308" y="254" fill="#e6edf3" font-size="8">DELETE /v1/api-keys/:id</text>
+<text x="440" y="254" fill="#6e7681" font-size="7">revoke</text>
+
+<text x="295" y="274" fill="#d29922" font-size="8" font-weight="600">○</text>
+<text x="308" y="274" fill="#8b949e" font-size="8">GET /v1/usage/me · /v1/quota/me</text>
+<text x="295" y="285" fill="#6e7681" font-size="7">  to build</text>
+
+<!-- maas-api → APIs -->
+<path d="M265,255 L276,240" fill="none" stroke="#30363d" stroke-width="1" stroke-dasharray="3,3" opacity="0.4"/>
+
+<!-- Data sources for maas-api -->
+<rect x="65" y="296" width="95" height="38" rx="5" fill="#161b22" stroke="#30363d" stroke-width="1"/>
+<text x="112" y="310" text-anchor="middle" fill="#8b949e" font-size="7" font-weight="600">K8s INFORMER</text>
+<text x="112" y="322" text-anchor="middle" fill="#6e7681" font-size="6">Local MaaSModelRef</text>
+<text x="112" y="330" text-anchor="middle" fill="#6e7681" font-size="6">CRs</text>
+
+<rect x="170" y="296" width="95" height="38" rx="5" fill="#2a1f0d" stroke="#d29922" stroke-width="1"/>
+<text x="217" y="310" text-anchor="middle" fill="#d29922" font-size="7" font-weight="600">GRID OVERLAY</text>
+<text x="217" y="322" text-anchor="middle" fill="#6e7681" font-size="6">All sites' models</text>
+<text x="217" y="330" text-anchor="middle" fill="#6e7681" font-size="6">(via SWIM)</text>
+
+<!-- maas-api → data sources -->
+<path d="M130,280 L112,292" fill="none" stroke="#30363d" stroke-width="0.8" stroke-dasharray="3,3"/>
+<path d="M200,280 L217,292" fill="none" stroke="#d29922" stroke-width="0.8" stroke-dasharray="3,3"/>
+
+<!-- Grid Gateway A -->
+<rect x="280" y="300" width="225" height="55" rx="8" fill="#2a1f0d" stroke="#d29922" stroke-width="2" filter="url(#sh)"/>
+<text x="392" y="316" text-anchor="middle" fill="#d29922" font-size="8" font-weight="600" letter-spacing="0.5">GRID GATEWAY</text>
+<text x="392" y="332" text-anchor="middle" fill="#e6edf3" font-size="11" font-weight="700">Praxis AI</text>
+<text x="392" y="345" text-anchor="middle" fill="#8b949e" font-size="7">api_key_auth · geo fencing · site selection</text>
+
+<!-- inference DNS → Grid Gateway A -->
+<path d="M265,118 L380,296" fill="none" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#ah-blue)"/>
+<text x="340" y="210" fill="#58a6ff" font-size="7" transform="rotate(60,340,210)">inference</text>
+
+<!-- Grid GW → maas-api for auth -->
+<path d="M280,330 L265,270" fill="none" stroke="#bc8cff" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#ah-purple)"/>
+<text x="260" y="305" fill="#bc8cff" font-size="6">auth</text>
+
+<!-- MaaS Gateway A -->
+<rect x="280" y="370" width="225" height="45" rx="6" fill="#1c1340" stroke="#8957e5" stroke-width="1.2" filter="url(#sh)"/>
+<text x="392" y="386" text-anchor="middle" fill="#8957e5" font-size="8" font-weight="600">MAAS GATEWAY</text>
+<text x="392" y="400" text-anchor="middle" fill="#e6edf3" font-size="10" font-weight="600">Praxis AI</text>
+<text x="392" y="410" text-anchor="middle" fill="#6e7681" font-size="7">Auth (Authorino) · Rate limit · Cred injection</text>
+
+<!-- Grid GW → MaaS GW -->
+<path d="M392,355 L392,366" fill="none" stroke="#d29922" stroke-width="1.5" marker-end="url(#ah-amber)"/>
+
+<!-- Grid Operator A -->
+<rect x="65" y="350" width="200" height="40" rx="6" fill="#1c1340" stroke="#8957e5" stroke-width="1" filter="url(#sh)"/>
+<text x="165" y="366" text-anchor="middle" fill="#8957e5" font-size="8" font-weight="600">GRID OPERATOR</text>
+<text x="165" y="380" text-anchor="middle" fill="#e6edf3" font-size="9" font-weight="600">SWIM · Signals · Overlay</text>
+
+<!-- Inference backends A -->
+<rect x="65" y="430" width="440" height="38" rx="6" fill="#0d2626" stroke="#39d2c0" stroke-width="1" filter="url(#sh)"/>
+<text x="285" y="446" text-anchor="middle" fill="#39d2c0" font-size="8" font-weight="600">INFERENCE</text>
+<text x="285" y="460" text-anchor="middle" fill="#e6edf3" font-size="9">EPP → vLLM · Qwen3-Coder-30B &nbsp; | &nbsp; ExternalModel → api.anthropic.com</text>
+
+<!-- MaaS GW → inference -->
+<path d="M392,415 L350,426" fill="none" stroke="#39d2c0" stroke-width="1.2" marker-end="url(#ah-teal)"/>
+
+<!-- Kuadrant A -->
+<rect x="65" y="480" width="200" height="35" rx="5" fill="#2a1a0a" stroke="#f0883e" stroke-width="1" filter="url(#sh)"/>
+<text x="165" y="496" text-anchor="middle" fill="#f0883e" font-size="8" font-weight="600">KUADRANT</text>
+<text x="165" y="508" text-anchor="middle" fill="#e6edf3" font-size="8">Limitador · Authorino</text>
+
+<!-- maas-controller A -->
+<rect x="280" y="480" width="225" height="35" rx="5" fill="#1c1340" stroke="#8957e5" stroke-width="1" filter="url(#sh)"/>
+<text x="392" y="496" text-anchor="middle" fill="#8957e5" font-size="8" font-weight="600">MAAS CONTROLLER</text>
+<text x="392" y="508" text-anchor="middle" fill="#e6edf3" font-size="8">CRD reconciliation</text>
+
+<!-- Shared DB -->
+<rect x="65" y="530" width="440" height="42" rx="6" fill="#0d2626" stroke="#39d2c0" stroke-width="1.5" filter="url(#sh)"/>
+<ellipse cx="92" cy="546" rx="10" ry="4" fill="none" stroke="#39d2c0" stroke-width="1"/>
+<path d="M82,546 L82,558 Q82,562 92,562 Q102,562 102,558 L102,546" fill="none" stroke="#39d2c0" stroke-width="1"/>
+<text x="310" y="548" text-anchor="middle" fill="#39d2c0" font-size="8" font-weight="600">SHARED DB · PostgreSQL</text>
+<text x="310" y="562" text-anchor="middle" fill="#8b949e" font-size="7">API keys · Subscriptions · Quotas · All clusters connect</text>
+
+<!-- maas-api → DB -->
+<path d="M165,280 L165,526" fill="none" stroke="#39d2c0" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#ah-teal)" opacity="0.4"/>
+
+<!-- ═══════════════════════════════════════════
+     CLUSTER B — peer (inference only for user)
+     ═══════════════════════════════════════════ -->
+<rect x="560" y="140" width="380" height="340" rx="10" fill="#161b22" fill-opacity="0.3" stroke="#30363d" stroke-width="2" stroke-dasharray="8,4"/>
+<text x="576" y="158" fill="#8b949e" font-size="9" font-weight="600">CLUSTER B · eu-west-1</text>
+<text x="880" y="158" text-anchor="end" fill="#6e7681" font-size="7">same stack, peer</text>
+
+<!-- Grid Gateway B -->
+<rect x="585" y="170" width="330" height="50" rx="8" fill="#2a1f0d" stroke="#d29922" stroke-width="1.5" filter="url(#sh)"/>
+<text x="750" y="188" text-anchor="middle" fill="#d29922" font-size="8" font-weight="600">GRID GATEWAY · Praxis AI</text>
+<text x="750" y="204" text-anchor="middle" fill="#8b949e" font-size="7">api_key_auth · geo fencing · site selection</text>
+
+<!-- MaaS Gateway B -->
+<rect x="585" y="234" width="330" height="40" rx="6" fill="#1c1340" stroke="#8957e5" stroke-width="1" filter="url(#sh)"/>
+<text x="750" y="250" text-anchor="middle" fill="#8957e5" font-size="8" font-weight="600">MAAS GATEWAY · Praxis AI</text>
+<text x="750" y="264" text-anchor="middle" fill="#6e7681" font-size="7">Auth (Authorino) · Rate limit · Cred injection</text>
+
+<path d="M750,220 L750,230" fill="none" stroke="#d29922" stroke-width="1.2" marker-end="url(#ah-amber)"/>
+
+<!-- maas-api + operator + controller B (compact) -->
+<rect x="585" y="288" width="155" height="35" rx="5" fill="#1c1340" stroke="#8957e5" stroke-width="1" filter="url(#sh)"/>
+<text x="662" y="302" text-anchor="middle" fill="#8957e5" font-size="7" font-weight="600">MAAS API + CONTROLLER</text>
+<text x="662" y="314" text-anchor="middle" fill="#6e7681" font-size="7">maas-api · maas-controller</text>
+
+<rect x="760" y="288" width="155" height="35" rx="5" fill="#1c1340" stroke="#8957e5" stroke-width="1" filter="url(#sh)"/>
+<text x="837" y="302" text-anchor="middle" fill="#8957e5" font-size="7" font-weight="600">GRID OPERATOR</text>
+<text x="837" y="314" text-anchor="middle" fill="#6e7681" font-size="7">SWIM · Signals · Overlay</text>
+
+<!-- Inference B -->
+<rect x="585" y="340" width="330" height="35" rx="6" fill="#0d2626" stroke="#39d2c0" stroke-width="1" filter="url(#sh)"/>
+<text x="750" y="356" text-anchor="middle" fill="#39d2c0" font-size="8" font-weight="600">INFERENCE</text>
+<text x="750" y="368" text-anchor="middle" fill="#e6edf3" font-size="8">EPP → vLLM · Qwen3-Coder-30B &nbsp;|&nbsp; ExternalModel CRs</text>
+
+<!-- Kuadrant B -->
+<rect x="585" y="390" width="330" height="30" rx="5" fill="#2a1a0a" stroke="#f0883e" stroke-width="1" filter="url(#sh)"/>
+<text x="750" y="410" text-anchor="middle" fill="#f0883e" font-size="8">Kuadrant (Limitador · Authorino) · Shared DB</text>
+
+<!-- ═══════════════════════════════════════════
+     CLUSTER C — peer
+     ═══════════════════════════════════════════ -->
+<rect x="560" y="500" width="380" height="130" rx="10" fill="#161b22" fill-opacity="0.3" stroke="#30363d" stroke-width="2" stroke-dasharray="8,4"/>
+<text x="576" y="518" fill="#8b949e" font-size="9" font-weight="600">CLUSTER C · eu-west-2</text>
+<text x="880" y="518" text-anchor="end" fill="#6e7681" font-size="7">same stack, peer</text>
+
+<rect x="585" y="530" width="330" height="35" rx="6" fill="#2a1f0d" stroke="#d29922" stroke-width="1" filter="url(#sh)"/>
+<text x="750" y="548" text-anchor="middle" fill="#d29922" font-size="8" font-weight="600">GRID GATEWAY + MAAS GATEWAY + GRID OPERATOR</text>
+<text x="750" y="560" text-anchor="middle" fill="#6e7681" font-size="7">Full identical stack · maas-api · Kuadrant · Shared DB</text>
+
+<rect x="585" y="580" width="330" height="30" rx="6" fill="#0d2626" stroke="#39d2c0" stroke-width="1" filter="url(#sh)"/>
+<text x="750" y="600" text-anchor="middle" fill="#39d2c0" font-size="8">INFERENCE · EPP → vLLM · Llama-4-Scout</text>
+
+<!-- ═══════════════════════════════════════════
+     CROSS-SITE: Grid GW mTLS
+     ═══════════════════════════════════════════ -->
+<path d="M505,330 L585,195" fill="none" stroke="#d29922" stroke-width="1.5" marker-end="url(#ah-amber)"/>
+<text x="555" y="255" text-anchor="middle" fill="#d29922" font-size="7" font-weight="600">cross-site mTLS</text>
+
+<path d="M505,355 L585,548" fill="none" stroke="#d29922" stroke-width="1.2" marker-end="url(#ah-amber)" opacity="0.5"/>
+
+<!-- SWIM gossip arcs -->
+<path d="M265,370 Q450,480 760,304" fill="none" stroke="#8957e5" stroke-width="1.2" stroke-dasharray="5,3" opacity="0.5"/>
+<path d="M265,370 Q450,560 760,560" fill="none" stroke="#8957e5" stroke-width="1.2" stroke-dasharray="5,3" opacity="0.3"/>
+<text x="500" y="440" text-anchor="middle" fill="#8957e5" font-size="7" opacity="0.7">SWIM gossip</text>
+
+<!-- DB connection from B and C -->
+<path d="M662,323 L500,545" fill="none" stroke="#39d2c0" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#ah-teal)" opacity="0.3"/>
+<path d="M750,610 L510,565" fill="none" stroke="#39d2c0" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#ah-teal)" opacity="0.3"/>
+
+<!-- ═══════════════════════════════════════════
+     DELIVERED CONFIG
+     ═══════════════════════════════════════════ -->
+<rect x="980" y="140" width="380" height="120" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1"/>
+<text x="1170" y="158" text-anchor="middle" fill="#6e7681" font-size="9" font-weight="600">DELIVERED TO USER (via portal)</text>
+
+<text x="995" y="178" fill="#d29922" font-size="8" font-weight="600">Anthropic clients (Claude Code):</text>
+<text x="995" y="192" fill="#8b949e" font-size="8" font-family="'SF Mono',Menlo,monospace">ANTHROPIC_API_KEY=sk-oai-abc123...</text>
+<text x="995" y="206" fill="#8b949e" font-size="8" font-family="'SF Mono',Menlo,monospace">ANTHROPIC_BASE_URL=https://ai-gateway.example.com/anthropic</text>
+
+<text x="995" y="226" fill="#d29922" font-size="8" font-weight="600">OpenAI clients (Codex CLI):</text>
+<text x="995" y="240" fill="#8b949e" font-size="8" font-family="'SF Mono',Menlo,monospace">OPENAI_API_KEY=sk-oai-abc123...</text>
+<text x="995" y="254" fill="#8b949e" font-size="8" font-family="'SF Mono',Menlo,monospace">OPENAI_BASE_URL=https://ai-gateway.example.com/openai</text>
+
+<!-- ═══════════════════════════════════════════
+     KEY PROPERTIES
+     ═══════════════════════════════════════════ -->
+<rect x="980" y="280" width="380" height="115" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1"/>
+<text x="1170" y="298" text-anchor="middle" fill="#e6edf3" font-size="9" font-weight="600">API Key Properties</text>
+<text x="995" y="316" fill="#3fb950" font-size="8" font-weight="600">✓</text>
+<text x="1010" y="316" fill="#8b949e" font-size="8">Same key works on any cluster (shared DB)</text>
+<text x="995" y="332" fill="#3fb950" font-size="8" font-weight="600">✓</text>
+<text x="1010" y="332" fill="#8b949e" font-size="8">Bound to subscription at creation</text>
+<text x="995" y="348" fill="#3fb950" font-size="8" font-weight="600">✓</text>
+<text x="1010" y="348" fill="#8b949e" font-size="8">Hash stored, plaintext never persisted</text>
+<text x="995" y="364" fill="#3fb950" font-size="8" font-weight="600">✓</text>
+<text x="1010" y="364" fill="#8b949e" font-size="8">Survives single → multi-cluster migration</text>
+<text x="995" y="380" fill="#3fb950" font-size="8" font-weight="600">✓</text>
+<text x="1010" y="380" fill="#8b949e" font-size="8">Grid validates via api_key_auth → maas-api</text>
+
+<!-- ═══════════════════════════════════════════
+     USER JOURNEY
+     ═══════════════════════════════════════════ -->
+<rect x="980" y="420" width="380" height="150" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1"/>
+<text x="1170" y="440" text-anchor="middle" fill="#e6edf3" font-size="10" font-weight="600">Tenant User Journey</text>
+
+<text x="995" y="462" fill="#3fb950" font-size="9" font-weight="600">1</text>
+<text x="1012" y="462" fill="#8b949e" font-size="8">Open portal → browse models (local + all Grid sites)</text>
+
+<text x="995" y="480" fill="#58a6ff" font-size="9" font-weight="600">2</text>
+<text x="1012" y="480" fill="#8b949e" font-size="8">Create API key → bound to subscription → get key + URLs</text>
+
+<text x="995" y="498" fill="#d29922" font-size="9" font-weight="600">3</text>
+<text x="1012" y="498" fill="#8b949e" font-size="8">Set env vars → use Claude Code / Codex CLI / SDKs</text>
+
+<text x="995" y="516" fill="#8957e5" font-size="9" font-weight="600">4</text>
+<text x="1012" y="516" fill="#8b949e" font-size="8">Grid routes to best site → MaaS enforces limits → inference</text>
+
+<text x="995" y="534" fill="#6e7681" font-size="9" font-weight="600">5</text>
+<text x="1012" y="534" fill="#6e7681" font-size="8">Check usage + remaining budget in portal (to build)</text>
+
+<text x="995" y="558" fill="#6e7681" font-size="7">User never sees clusters, sites, or Grid topology.</text>
+<text x="995" y="568" fill="#6e7681" font-size="7">Same key, same URL, any model.</text>
+
+<!-- ═══════════════════════════════════════════
+     LEGEND
+     ═══════════════════════════════════════════ -->
+<g transform="translate(60, 660)">
+  <text x="0" y="12" fill="#8b949e" font-size="9" font-weight="600">LEGEND</text>
+  <line x1="55" y1="8" x2="78" y2="8" stroke="#58a6ff" stroke-width="2"/>
+  <text x="83" y="12" fill="#8b949e" font-size="8">Client / inference</text>
+  <line x1="170" y1="8" x2="193" y2="8" stroke="#d29922" stroke-width="2"/>
+  <text x="198" y="12" fill="#8b949e" font-size="8">Portal / Grid Gateway</text>
+  <line x1="320" y1="8" x2="343" y2="8" stroke="#8957e5" stroke-width="2"/>
+  <text x="348" y="12" fill="#8b949e" font-size="8">MaaS (API / Gateway)</text>
+  <line x1="460" y1="8" x2="483" y2="8" stroke="#39d2c0" stroke-width="1.5" stroke-dasharray="4,3"/>
+  <text x="488" y="12" fill="#8b949e" font-size="8">Database / Inference</text>
+  <line x1="600" y1="8" x2="623" y2="8" stroke="#f0883e" stroke-width="1.5"/>
+  <text x="628" y="12" fill="#8b949e" font-size="8">Kuadrant</text>
+  <rect x="690" y="2" width="50" height="14" rx="3" fill="#161b22" stroke="#3fb950" stroke-width="1.5" stroke-dasharray="6,4"/>
+  <text x="715" y="12" text-anchor="middle" fill="#3fb950" font-size="7" font-weight="600">HUB</text>
+  <text x="750" y="12" fill="#8b949e" font-size="8">DNS designation</text>
+</g>
+
+</svg>
+</div>
+</body>
+</html>

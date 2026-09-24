@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Grid v3 Demo — Deployment Layout</title>
+<style>
+  body { background: #0d1117; color: #e6edf3; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, sans-serif; display: flex; flex-direction: column; align-items: center; padding: 24px; }
+  h1 { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
+  .sub { color: #8b949e; font-size: 13px; margin-bottom: 24px; }
+  .mermaid { width: 100%; max-width: 1400px; }
+</style>
+</head>
+<body>
+<h1>AI Grid v3 Demo — Deployment Layout</h1>
+<p class="sub">Namespace: ai-grid-v3 — Pure Praxis gateway with JWT auth, geo routing, token budget</p>
+
+<h2 style="margin-top:40px; color:#8b949e; font-size:16px;">Tenant Admin — Multi-cluster Management</h2>
+
+<pre class="mermaid">
+graph TD
+    ADMIN["**Tenant Admin**\nPlatform ops / team lead"]
+
+    subgraph "Tenant Admin UI (standalone)"
+        UI["**Admin UI**\nModel deployment · Access control\nQuota config · Fleet monitoring"]
+    end
+
+    subgraph "Management Layer (hub cluster)"
+        API["**Management API**\nOrchestrates across clusters"]
+        DB["**Shared DB (RDS)**\nAPI keys · metering events\nuser quotas"]
+    end
+
+    ADMIN --> UI
+    UI --> API
+    API <--> DB
+
+    subgraph "Multi-cluster Distribution"
+        GITOPS["**GitOps / ACM / Ansible**\nRHCE · OpenShift multi-cluster\nPushes CRDs to target clusters"]
+    end
+
+    API -->|"deploy model\nconfigure access + limits"| GITOPS
+
+    subgraph "Cluster A · us-east-1"
+        CRD1["MaaSModelRef · ExternalModel\nMaaSSubscription · MaaSAuthPolicy"]
+        CTRL1["**maas-controller**\nreconciles → Kuadrant policies"]
+        RECON1["**MaaS → Grid reconciler**\nauto-creates InferenceProvider"]
+        CRD1 --> CTRL1
+        CTRL1 -.-> RECON1
+    end
+
+    subgraph "Cluster B · eu-west-1"
+        CRD2["MaaSModelRef · ExternalModel\nMaaSSubscription · MaaSAuthPolicy"]
+        CTRL2["**maas-controller**\nreconciles → Kuadrant policies"]
+        RECON2["**MaaS → Grid reconciler**\nauto-creates InferenceProvider"]
+        CRD2 --> CTRL2
+        CTRL2 -.-> RECON2
+    end
+
+    GITOPS -->|"push CRDs"| CRD1
+    GITOPS -->|"push CRDs"| CRD2
+
+    subgraph "Grid Control Plane"
+        OVERLAY["**Grid Overlay**\ncandidates across all sites\nQwen3-Coder-30B: site-A + site-B\nClaude Sonnet: site-A + site-B"]
+    end
+
+    RECON1 -.->|"InferenceProvider"| OVERLAY
+    RECON2 -.->|"InferenceProvider"| OVERLAY
+
+    API -->|"quota config\nusage queries"| DB
+
+    subgraph "Observability (ACM)"
+        THANOS["**Thanos**\nACM Multi-cluster\nObservability Operator\naggregates metrics from all clusters"]
+        GRAFANA["**Grafana**\nToken usage · Model latency\nPer-user dashboards · Cost"]
+    end
+
+    CTRL1 -.->|"Prometheus metrics"| THANOS
+    CTRL2 -.->|"Prometheus metrics"| THANOS
+    THANOS --> GRAFANA
+    UI -->|"usage dashboards"| GRAFANA
+
+    style RECON1 stroke-dasharray: 5 5
+    style RECON2 stroke-dasharray: 5 5
+</pre>
+
+<h2 style="margin-top:40px; color:#8b949e; font-size:16px;">Tenant User — Self-service + Inference</h2>
+
+<pre class="mermaid">
+graph TD
+    USER["**Tenant User**\nEngineer · Claude Code / Codex CLI"]
+
+    subgraph "Tenant User UI (self-service portal)"
+        PORTAL["**User Portal**\nDevHub / Backstage plugin\nor standalone web app"]
+    end
+
+    USER --> PORTAL
+
+    subgraph "Hub Cluster — maas-api"
+        MODELS["**GET /v1/models**\nAll models across Grid\n(local informer + overlay)"]
+        KEYS["**POST /v1/api-keys**\nCreate API key\n(bound to subscription)"]
+        MANAGE["**Search / Revoke keys**"]
+        USAGE["**GET /v1/usage/me**\nPersonal usage (to build)"]
+        QUOTA["**GET /v1/quota/me**\nRemaining budget (to build)"]
+    end
+
+    PORTAL -->|"discover models"| MODELS
+    PORTAL -->|"get a key"| KEYS
+    PORTAL -->|"manage keys"| MANAGE
+    PORTAL -->|"my usage"| USAGE
+    PORTAL -->|"my budget"| QUOTA
+
+    subgraph "Inference (data plane)"
+        DNS["**ai-gateway.example.com**\nstable DNS → nearest cluster"]
+
+        subgraph "Cluster A · us-east-1"
+            GW1["**Grid Gateway**\napi_key_auth → site selection"]
+            MAAS1["**MaaS Gateway**\nrate limit · metering\ncredential injection"]
+        end
+
+        subgraph "Cluster B · eu-west-1"
+            GW2["**Grid Gateway**\napi_key_auth → site selection"]
+            MAAS2["**MaaS Gateway**\nrate limit · metering\ncredential injection"]
+        end
+
+        BACKENDS["**Model Backends**\nlocal vLLM · external APIs"]
+    end
+
+    USER -->|"POST /v1/chat/completions\nBearer sk-oai-..."| DNS
+    DNS --> GW1
+    DNS --> GW2
+    GW1 -->|local or cross-site| MAAS1
+    GW1 -->|cross-site| MAAS2
+    GW2 -->|local or cross-site| MAAS2
+    GW2 -->|cross-site| MAAS1
+    MAAS1 --> BACKENDS
+    MAAS2 --> BACKENDS
+
+    style USAGE stroke-dasharray: 5 5
+    style QUOTA stroke-dasharray: 5 5
+</pre>
+
+<h2 style="margin-top:40px; color:#8b949e; font-size:16px;">Multi-cluster Data Plane</h2>
+
+<pre class="mermaid">
+graph TD
+    C1["**Consumer**\ncurl / SDK / Claude Code\nBearer JWT"]
+
+    C1 -->|HTTPS| GW1
+
+    subgraph "Cluster A · us-east-1 (hub)"
+        GW1["**Grid Gateway**\nJWT auth · Geo fencing\nToken budget · Site selection"]
+        OP1["**Grid Operator**\nSWIM · Signals · Overlay"]
+        MAAS1["**MaaS Gateway (existing)**\nPraxis AI · Model routing\nCredential injection"]
+        EPP1["**EPP** · Endpoint picker"]
+        VLLM1["**vLLM** · Qwen3-Coder-30B"]
+        OP1 -.->|overlay| GW1
+        GW1 -->|local| MAAS1
+        MAAS1 --> EPP1 --> VLLM1
+    end
+
+    subgraph "Cluster B · eu-west-1 (peer)"
+        GW2["**Grid Gateway**\nJWT auth · Geo fencing\nToken budget · Site selection"]
+        OP2["**Grid Operator**\nSWIM · Signals · Overlay"]
+        MAAS2["**MaaS Gateway (existing)**\nPraxis AI · Model routing\nCredential injection"]
+        EPP2["**EPP** · Endpoint picker"]
+        VLLM2["**vLLM** · Qwen3-Coder-30B"]
+        OP2 -.->|overlay| GW2
+        GW2 -->|local| MAAS2
+        MAAS2 --> EPP2 --> VLLM2
+    end
+
+    subgraph "Cluster C · eu-west-2 (peer)"
+        GW3["**Grid Gateway**\nJWT auth · Geo fencing\nToken budget · Site selection"]
+        OP3["**Grid Operator**\nSWIM · Signals · Overlay"]
+        MAAS3["**MaaS Gateway (existing)**\nPraxis AI · Model routing\nCredential injection"]
+        EPP3["**EPP** · Endpoint picker"]
+        VLLM3["**vLLM** · Qwen3-Coder-30B"]
+        OP3 -.->|overlay| GW3
+        GW3 -->|local| MAAS3
+        MAAS3 --> EPP3 --> VLLM3
+    end
+
+    subgraph "External Providers"
+        EXT1["**api.anthropic.com**\nClaude"]
+        EXT2["**api.openai.com**\nGPT"]
+    end
+
+    %% Cross-site routing
+    GW1 <-->|"cross-site mTLS\n(model routing)"| GW2
+    GW1 <-->|"cross-site mTLS"| GW3
+
+    %% MaaS-level external providers (existing, works today)
+    MAAS1 -->|"HTTPS · credential injection\n(existing MaaS config)"| EXT1
+    MAAS1 -->|"HTTPS · credential injection"| EXT2
+
+    %% Grid-level external providers (target, via InferenceProvider CRD)
+    GW1 -.->|"Grid-managed fallback\n(target: InferenceProvider api_provider)"| EXT1
+    GW1 -.->|"Grid-managed fallback"| EXT2
+
+    %% Operator mesh
+    OP1 <-->|"SWIM gossip · Signals polling\n(membership, liveness, load)"| OP2
+    OP1 <-->|"SWIM gossip · Signals polling"| OP3
+</pre>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({ startOnLoad: true, theme: 'dark' });
+</script>
+</body>
+</html>

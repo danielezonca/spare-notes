@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Grid — Tenant Admin Flows</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0d1117;color:#e6edf3;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,sans-serif;display:flex;justify-content:center;padding:24px}
+.wrap{width:100%;max-width:1500px}
+h1{font-size:20px;font-weight:600;color:#e6edf3;margin-bottom:4px;text-align:center}
+.sub{text-align:center;color:#8b949e;font-size:13px;margin-bottom:20px}
+svg{width:100%;height:auto;display:block}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>AI Grid — Tenant Admin Flows</h1>
+<p class="sub">Model deployment · Access control · Quota &amp; usage · Multi-cluster distribution via ACM/GitOps</p>
+
+<svg viewBox="0 0 1400 880" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <marker id="ah-blue" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="none" stroke="#58a6ff" stroke-width="1.2"/></marker>
+  <marker id="ah-green" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="none" stroke="#3fb950" stroke-width="1.2"/></marker>
+  <marker id="ah-purple" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="none" stroke="#bc8cff" stroke-width="1.2"/></marker>
+  <marker id="ah-teal" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="none" stroke="#39d2c0" stroke-width="1.2"/></marker>
+  <marker id="ah-amber" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="none" stroke="#d29922" stroke-width="1.2"/></marker>
+  <marker id="ah-red" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="none" stroke="#f85149" stroke-width="1.2"/></marker>
+  <marker id="ah-orange" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="none" stroke="#f0883e" stroke-width="1.2"/></marker>
+  <filter id="sh" x="-4%" y="-4%" width="108%" height="108%"><feDropShadow dx="0" dy="1" stdDeviation="2" flood-color="#000" flood-opacity="0.4"/></filter>
+</defs>
+
+<!-- ═══════════════════════════════════════════
+     TENANT ADMIN
+     ═══════════════════════════════════════════ -->
+<rect x="80" y="16" width="220" height="55" rx="8" fill="#1a3050" stroke="#58a6ff" stroke-width="1.5" filter="url(#sh)"/>
+<text x="190" y="34" text-anchor="middle" fill="#58a6ff" font-size="9" font-weight="600" letter-spacing="0.5">TENANT ADMIN</text>
+<text x="190" y="50" text-anchor="middle" fill="#e6edf3" font-size="12" font-weight="700">Platform Ops / Team Lead</text>
+<text x="190" y="63" text-anchor="middle" fill="#8b949e" font-size="8">Model lifecycle · Access · Quotas · Monitoring</text>
+
+<!-- ═══════════════════════════════════════════
+     DNS
+     ═══════════════════════════════════════════ -->
+<rect x="80" y="90" width="220" height="24" rx="4" fill="#0d1a2a" stroke="#d29922" stroke-width="1" filter="url(#sh)"/>
+<text x="190" y="106" text-anchor="middle" fill="#d29922" font-size="9" font-weight="600">admin.example.com</text>
+
+<path d="M190,71 L190,86" fill="none" stroke="#d29922" stroke-width="1.2" marker-end="url(#ah-amber)"/>
+
+<!-- ═══════════════════════════════════════════
+     HUB CLUSTER A — Management
+     ═══════════════════════════════════════════ -->
+<rect x="40" y="130" width="520" height="520" rx="10" fill="#161b22" fill-opacity="0.3" stroke="#3fb950" stroke-width="2" stroke-dasharray="8,4"/>
+<text x="56" y="148" fill="#3fb950" font-size="9" font-weight="600">CLUSTER A · us-east-1 · HUB (DNS)</text>
+<text x="500" y="148" text-anchor="end" fill="#3fb950" font-size="7">management + inference</text>
+
+<!-- Tenant Admin UI -->
+<rect x="65" y="160" width="220" height="50" rx="6" fill="#2a1f0d" stroke="#d29922" stroke-width="1.5" filter="url(#sh)"/>
+<text x="175" y="178" text-anchor="middle" fill="#d29922" font-size="8" font-weight="600">TENANT ADMIN UI</text>
+<text x="175" y="194" text-anchor="middle" fill="#e6edf3" font-size="11" font-weight="600">Admin Console</text>
+<text x="175" y="206" text-anchor="middle" fill="#f85149" font-size="7" font-weight="600">Provided by RHCE</text>
+
+<!-- DNS → Admin UI -->
+<path d="M190,114 L175,156" fill="none" stroke="#d29922" stroke-width="1.2" marker-end="url(#ah-amber)"/>
+
+<!-- Management API -->
+<rect x="65" y="225" width="220" height="50" rx="6" fill="#1c1340" stroke="#8957e5" stroke-width="1.5" filter="url(#sh)"/>
+<text x="175" y="243" text-anchor="middle" fill="#8957e5" font-size="8" font-weight="600">MANAGEMENT API</text>
+<text x="175" y="259" text-anchor="middle" fill="#e6edf3" font-size="11" font-weight="600">Orchestration Layer</text>
+<text x="175" y="271" text-anchor="middle" fill="#f85149" font-size="7" font-weight="600">Provided by RHCE</text>
+
+<!-- Admin UI → Mgmt API -->
+<path d="M175,210 L175,221" fill="none" stroke="#8957e5" stroke-width="1.2" marker-end="url(#ah-purple)"/>
+
+<!-- ═══════════════════════════════════════════
+     ADMIN ACTIONS — right of management stack
+     ═══════════════════════════════════════════ -->
+<rect x="300" y="160" width="245" height="200" rx="6" fill="#161b22" stroke="#30363d" stroke-width="1"/>
+<text x="422" y="178" text-anchor="middle" fill="#e6edf3" font-size="9" font-weight="600">Admin Actions</text>
+
+<text x="315" y="198" fill="#3fb950" font-size="8" font-weight="600">●</text>
+<text x="330" y="198" fill="#e6edf3" font-size="8" font-weight="600">Deploy model</text>
+<text x="315" y="211" fill="#6e7681" font-size="7">  LLMInferenceService + MaaSModelRef</text>
+<text x="315" y="222" fill="#6e7681" font-size="7">  or ExternalModel + MaaSModelRef</text>
+
+<text x="315" y="240" fill="#58a6ff" font-size="8" font-weight="600">●</text>
+<text x="330" y="240" fill="#e6edf3" font-size="8" font-weight="600">Grant access + limits</text>
+<text x="315" y="253" fill="#6e7681" font-size="7">  MaaSSubscription (token rate limits)</text>
+<text x="315" y="264" fill="#6e7681" font-size="7">  MaaSAuthPolicy (subjects: groups/users)</text>
+
+<text x="315" y="282" fill="#d29922" font-size="8" font-weight="600">●</text>
+<text x="330" y="282" fill="#e6edf3" font-size="8" font-weight="600">Bulk key management</text>
+<text x="315" y="295" fill="#6e7681" font-size="7">  POST /v1/api-keys/bulk-revoke</text>
+
+<text x="315" y="313" fill="#d29922" font-size="8" font-weight="600">○</text>
+<text x="330" y="313" fill="#8b949e" font-size="8">Configure per-user quota</text>
+<text x="315" y="326" fill="#6e7681" font-size="7">  PATCH /admin/quotas/{user} (to build)</text>
+
+<text x="315" y="344" fill="#d29922" font-size="8" font-weight="600">○</text>
+<text x="330" y="344" fill="#8b949e" font-size="8">Get all users' usage</text>
+<text x="315" y="357" fill="#6e7681" font-size="7">  GET /admin/usage (to build)</text>
+
+<!-- Mgmt API → Actions -->
+<path d="M285,250 L296,250" fill="none" stroke="#30363d" stroke-width="1" stroke-dasharray="3,3" opacity="0.4"/>
+
+<!-- ═══════════════════════════════════════════
+     GitOps / ACM / Ansible — distribution engine
+     ═══════════════════════════════════════════ -->
+<rect x="65" y="290" width="220" height="55" rx="8" fill="#162416" stroke="#238636" stroke-width="1.5" filter="url(#sh)"/>
+<text x="175" y="308" text-anchor="middle" fill="#3fb950" font-size="8" font-weight="600">MULTI-CLUSTER DISTRIBUTION</text>
+<text x="175" y="324" text-anchor="middle" fill="#e6edf3" font-size="11" font-weight="700">GitOps · ACM · Ansible</text>
+<text x="175" y="338" text-anchor="middle" fill="#8b949e" font-size="7">RHCE · OpenShift Advanced Cluster Management</text>
+
+<!-- Mgmt API → ACM -->
+<path d="M175,275 L175,286" fill="none" stroke="#3fb950" stroke-width="1.5" marker-end="url(#ah-green)"/>
+
+<!-- ═══════════════════════════════════════════
+     CRDs pushed to cluster A (local)
+     ═══════════════════════════════════════════ -->
+<rect x="65" y="365" width="220" height="90" rx="6" fill="#1c1340" stroke="#8957e5" stroke-width="1.2" filter="url(#sh)"/>
+<text x="175" y="382" text-anchor="middle" fill="#8957e5" font-size="8" font-weight="600">MAAS CRDs (local)</text>
+<text x="80" y="398" fill="#e6edf3" font-size="8">MaaSModelRef · ExternalModel</text>
+<text x="80" y="412" fill="#e6edf3" font-size="8">MaaSSubscription · MaaSAuthPolicy</text>
+<text x="80" y="430" fill="#6e7681" font-size="7">maas-controller reconciles →</text>
+<text x="80" y="442" fill="#6e7681" font-size="7">Kuadrant AuthPolicy + TokenRateLimitPolicy</text>
+
+<!-- ACM → local CRDs -->
+<path d="M140,345 L140,361" fill="none" stroke="#3fb950" stroke-width="1.2" marker-end="url(#ah-green)"/>
+<text x="148" y="356" fill="#3fb950" font-size="6">push CRDs</text>
+
+<!-- ═══════════════════════════════════════════
+     MaaS → Grid reconciler (on hub)
+     ═══════════════════════════════════════════ -->
+<rect x="300" y="380" width="245" height="50" rx="6" fill="#2a1f0d" stroke="#d29922" stroke-width="1" stroke-dasharray="4,3" filter="url(#sh)"/>
+<text x="422" y="398" text-anchor="middle" fill="#d29922" font-size="8" font-weight="600">MAAS → GRID RECONCILER (to build)</text>
+<text x="422" y="414" text-anchor="middle" fill="#8b949e" font-size="8">Watches MaaSModelRef → auto-creates</text>
+<text x="422" y="424" text-anchor="middle" fill="#8b949e" font-size="8">InferenceProvider CRs for Grid routing</text>
+
+<!-- CRDs → reconciler -->
+<path d="M285,410 L296,405" fill="none" stroke="#d29922" stroke-width="1" stroke-dasharray="3,3" marker-end="url(#ah-amber)"/>
+
+<!-- ═══════════════════════════════════════════
+     Grid Operator + Overlay (on hub)
+     ═══════════════════════════════════════════ -->
+<rect x="300" y="445" width="245" height="50" rx="6" fill="#1c1340" stroke="#8957e5" stroke-width="1.2" filter="url(#sh)"/>
+<text x="422" y="462" text-anchor="middle" fill="#8957e5" font-size="8" font-weight="600">GRID OPERATOR</text>
+<text x="422" y="478" text-anchor="middle" fill="#e6edf3" font-size="10" font-weight="600">SWIM · Signals · Overlay</text>
+<text x="422" y="490" text-anchor="middle" fill="#6e7681" font-size="7">Gossips models + capabilities to all peers</text>
+
+<!-- reconciler → Grid Operator -->
+<path d="M422,430 L422,441" fill="none" stroke="#d29922" stroke-width="1" stroke-dasharray="3,3" marker-end="url(#ah-amber)"/>
+
+<!-- Kuadrant + maas-controller (hub) -->
+<rect x="65" y="470" width="100" height="38" rx="5" fill="#2a1a0a" stroke="#f0883e" stroke-width="1" filter="url(#sh)"/>
+<text x="115" y="486" text-anchor="middle" fill="#f0883e" font-size="7" font-weight="600">KUADRANT</text>
+<text x="115" y="498" text-anchor="middle" fill="#e6edf3" font-size="7">Limitador · Authorino</text>
+
+<rect x="175" y="470" width="110" height="38" rx="5" fill="#1c1340" stroke="#8957e5" stroke-width="1" filter="url(#sh)"/>
+<text x="230" y="486" text-anchor="middle" fill="#8957e5" font-size="7" font-weight="600">MAAS CONTROLLER</text>
+<text x="230" y="498" text-anchor="middle" fill="#e6edf3" font-size="7">CRD reconciliation</text>
+
+<!-- Shared DB -->
+<rect x="65" y="525" width="480" height="42" rx="6" fill="#0d2626" stroke="#39d2c0" stroke-width="1.5" filter="url(#sh)"/>
+<ellipse cx="92" cy="542" rx="10" ry="4" fill="none" stroke="#39d2c0" stroke-width="1"/>
+<path d="M82,542 L82,554 Q82,558 92,558 Q102,558 102,554 L102,542" fill="none" stroke="#39d2c0" stroke-width="1"/>
+<text x="330" y="542" text-anchor="middle" fill="#39d2c0" font-size="8" font-weight="600">SHARED DB · PostgreSQL</text>
+<text x="330" y="558" text-anchor="middle" fill="#8b949e" font-size="7">API keys · Subscriptions · Quotas · All clusters connect</text>
+
+<!-- Mgmt API → DB (for quota/usage) -->
+<path d="M100,275 L90,521" fill="none" stroke="#39d2c0" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#ah-teal)" opacity="0.4"/>
+
+<!-- Observability -->
+<rect x="65" y="585" width="480" height="48" rx="8" fill="#2a1a0a" stroke="#f0883e" stroke-width="1.5" filter="url(#sh)"/>
+<text x="305" y="604" text-anchor="middle" fill="#f0883e" font-size="9" font-weight="600">OBSERVABILITY · ACM</text>
+<text x="305" y="620" text-anchor="middle" fill="#e6edf3" font-size="11" font-weight="700">Thanos · Grafana</text>
+<text x="305" y="630" text-anchor="middle" fill="#8b949e" font-size="7">Multi-cluster Observability Operator · Token usage · Latency · Cost dashboards</text>
+
+<!-- Admin UI → Grafana -->
+<path d="M100,210 L60,600 L61,600" fill="none" stroke="#f0883e" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#ah-orange)" opacity="0.4"/>
+<text x="48" y="420" fill="#f0883e" font-size="6" transform="rotate(-90,48,420)">dashboards</text>
+
+<!-- ═══════════════════════════════════════════
+     CLUSTER B — peer
+     ═══════════════════════════════════════════ -->
+<rect x="620" y="130" width="380" height="340" rx="10" fill="#161b22" fill-opacity="0.3" stroke="#30363d" stroke-width="2" stroke-dasharray="8,4"/>
+<text x="636" y="148" fill="#8b949e" font-size="9" font-weight="600">CLUSTER B · eu-west-1</text>
+<text x="940" y="148" text-anchor="end" fill="#6e7681" font-size="7">same stack, peer</text>
+
+<!-- CRDs pushed to B -->
+<rect x="645" y="162" width="330" height="70" rx="6" fill="#1c1340" stroke="#8957e5" stroke-width="1.2" filter="url(#sh)"/>
+<text x="810" y="180" text-anchor="middle" fill="#8957e5" font-size="8" font-weight="600">MAAS CRDs (pushed by ACM)</text>
+<text x="660" y="198" fill="#e6edf3" font-size="8">MaaSModelRef · ExternalModel</text>
+<text x="660" y="212" fill="#e6edf3" font-size="8">MaaSSubscription · MaaSAuthPolicy</text>
+<text x="660" y="224" fill="#6e7681" font-size="7">Same CRDs as hub — ACM distributes</text>
+
+<!-- ACM → Cluster B CRDs -->
+<path d="M285,318 Q500,180 641,190" fill="none" stroke="#3fb950" stroke-width="1.5" marker-end="url(#ah-green)"/>
+<text x="480" y="220" fill="#3fb950" font-size="7" font-weight="600">push CRDs</text>
+
+<!-- maas-controller B -->
+<rect x="645" y="248" width="155" height="38" rx="5" fill="#1c1340" stroke="#8957e5" stroke-width="1" filter="url(#sh)"/>
+<text x="722" y="264" text-anchor="middle" fill="#8957e5" font-size="7" font-weight="600">MAAS CONTROLLER</text>
+<text x="722" y="278" text-anchor="middle" fill="#e6edf3" font-size="8">CRD reconciliation</text>
+
+<!-- MaaS → Grid reconciler B -->
+<rect x="820" y="248" width="155" height="38" rx="5" fill="#2a1f0d" stroke="#d29922" stroke-width="1" stroke-dasharray="4,3" filter="url(#sh)"/>
+<text x="897" y="264" text-anchor="middle" fill="#d29922" font-size="7" font-weight="600">MAAS → GRID RECONCILER</text>
+<text x="897" y="278" text-anchor="middle" fill="#6e7681" font-size="7">auto-creates InferenceProvider</text>
+
+<!-- Grid Operator B -->
+<rect x="645" y="302" width="330" height="40" rx="6" fill="#1c1340" stroke="#8957e5" stroke-width="1.2" filter="url(#sh)"/>
+<text x="810" y="318" text-anchor="middle" fill="#8957e5" font-size="8" font-weight="600">GRID OPERATOR</text>
+<text x="810" y="332" text-anchor="middle" fill="#e6edf3" font-size="9" font-weight="600">SWIM · Signals · Overlay generation</text>
+
+<!-- Kuadrant B -->
+<rect x="645" y="358" width="155" height="35" rx="5" fill="#2a1a0a" stroke="#f0883e" stroke-width="1" filter="url(#sh)"/>
+<text x="722" y="374" text-anchor="middle" fill="#f0883e" font-size="7" font-weight="600">KUADRANT</text>
+<text x="722" y="386" text-anchor="middle" fill="#e6edf3" font-size="7">Limitador · Authorino</text>
+
+<!-- Inference B -->
+<rect x="820" y="358" width="155" height="35" rx="5" fill="#0d2626" stroke="#39d2c0" stroke-width="1" filter="url(#sh)"/>
+<text x="897" y="374" text-anchor="middle" fill="#39d2c0" font-size="7" font-weight="600">INFERENCE</text>
+<text x="897" y="386" text-anchor="middle" fill="#e6edf3" font-size="7">EPP → vLLM · Qwen3</text>
+
+<!-- Grid GW + MaaS GW B (compact) -->
+<rect x="645" y="408" width="330" height="38" rx="6" fill="#2a1f0d" stroke="#d29922" stroke-width="1" filter="url(#sh)"/>
+<text x="810" y="424" text-anchor="middle" fill="#d29922" font-size="8" font-weight="600">GRID GATEWAY + MAAS GATEWAY</text>
+<text x="810" y="438" text-anchor="middle" fill="#6e7681" font-size="7">Praxis AI · Auth · Rate limit · Routing · Cred injection</text>
+
+<!-- DB connection from B -->
+<path d="M722,286 Q600,490 540,545" fill="none" stroke="#39d2c0" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#ah-teal)" opacity="0.3"/>
+
+<!-- ═══════════════════════════════════════════
+     CLUSTER C — peer (compact)
+     ═══════════════════════════════════════════ -->
+<rect x="620" y="490" width="380" height="145" rx="10" fill="#161b22" fill-opacity="0.3" stroke="#30363d" stroke-width="2" stroke-dasharray="8,4"/>
+<text x="636" y="508" fill="#8b949e" font-size="9" font-weight="600">CLUSTER C · eu-west-2</text>
+<text x="940" y="508" text-anchor="end" fill="#6e7681" font-size="7">same stack, peer</text>
+
+<!-- CRDs C -->
+<rect x="645" y="520" width="330" height="35" rx="6" fill="#1c1340" stroke="#8957e5" stroke-width="1" filter="url(#sh)"/>
+<text x="810" y="536" text-anchor="middle" fill="#8957e5" font-size="8" font-weight="600">MAAS CRDs (pushed by ACM)</text>
+<text x="810" y="548" text-anchor="middle" fill="#6e7681" font-size="7">Same CRDs · maas-controller · MaaS → Grid reconciler</text>
+
+<!-- ACM → Cluster C -->
+<path d="M285,330 Q500,440 641,530" fill="none" stroke="#3fb950" stroke-width="1.5" marker-end="url(#ah-green)"/>
+
+<!-- Full stack C -->
+<rect x="645" y="570" width="155" height="38" rx="5" fill="#1c1340" stroke="#8957e5" stroke-width="1" filter="url(#sh)"/>
+<text x="722" y="584" text-anchor="middle" fill="#8957e5" font-size="7" font-weight="600">GRID OPERATOR + KUADRANT</text>
+<text x="722" y="598" text-anchor="middle" fill="#6e7681" font-size="7">SWIM · Limitador · Authorino</text>
+
+<rect x="820" y="570" width="155" height="38" rx="5" fill="#0d2626" stroke="#39d2c0" stroke-width="1" filter="url(#sh)"/>
+<text x="897" y="584" text-anchor="middle" fill="#39d2c0" font-size="7" font-weight="600">INFERENCE</text>
+<text x="897" y="598" text-anchor="middle" fill="#e6edf3" font-size="7">EPP → vLLM · Llama-4-Scout</text>
+
+<!-- DB connection from C -->
+<path d="M645,590 Q580,570 540,555" fill="none" stroke="#39d2c0" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#ah-teal)" opacity="0.3"/>
+
+<!-- ═══════════════════════════════════════════
+     SWIM gossip between operators
+     ═══════════════════════════════════════════ -->
+<path d="M545,470 Q580,350 645,322" fill="none" stroke="#8957e5" stroke-width="1.5" stroke-dasharray="6,3" opacity="0.5"/>
+<path d="M545,480 Q590,520 645,585" fill="none" stroke="#8957e5" stroke-width="1.2" stroke-dasharray="6,3" opacity="0.3"/>
+<path d="M810,342 Q810,460 810,566" fill="none" stroke="#8957e5" stroke-width="1.2" stroke-dasharray="6,3" opacity="0.3"/>
+
+<!-- ═══════════════════════════════════════════
+     ADMIN FLOW — right side
+     ═══════════════════════════════════════════ -->
+<rect x="1040" y="130" width="330" height="230" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1"/>
+<text x="1205" y="150" text-anchor="middle" fill="#e6edf3" font-size="10" font-weight="600">Model Deployment Flow</text>
+
+<text x="1055" y="174" fill="#d29922" font-size="9" font-weight="600">1</text>
+<text x="1072" y="174" fill="#8b949e" font-size="8">Admin opens Admin UI → selects "deploy model"</text>
+
+<text x="1055" y="196" fill="#8957e5" font-size="9" font-weight="600">2</text>
+<text x="1072" y="196" fill="#8b949e" font-size="8">Management API generates MaaS CRDs:</text>
+<text x="1072" y="210" fill="#6e7681" font-size="7">ExternalModel or LLMInferenceService + MaaSModelRef</text>
+<text x="1072" y="222" fill="#6e7681" font-size="7">MaaSSubscription (rate limits) + MaaSAuthPolicy (access)</text>
+
+<text x="1055" y="244" fill="#3fb950" font-size="9" font-weight="600">3</text>
+<text x="1072" y="244" fill="#8b949e" font-size="8">ACM/GitOps pushes CRDs to target clusters</text>
+
+<text x="1055" y="266" fill="#8957e5" font-size="9" font-weight="600">4</text>
+<text x="1072" y="266" fill="#8b949e" font-size="8">maas-controller reconciles on each cluster:</text>
+<text x="1072" y="280" fill="#6e7681" font-size="7">→ Kuadrant AuthPolicy + TokenRateLimitPolicy</text>
+<text x="1072" y="292" fill="#6e7681" font-size="7">→ Model transitions to Ready (governance paired)</text>
+
+<text x="1055" y="314" fill="#d29922" font-size="9" font-weight="600">5</text>
+<text x="1072" y="314" fill="#8b949e" font-size="8">MaaS → Grid reconciler creates InferenceProvider</text>
+<text x="1072" y="328" fill="#6e7681" font-size="7">→ Grid Operator gossips model to all peers</text>
+<text x="1072" y="340" fill="#6e7681" font-size="7">→ Model routable across the entire Grid</text>
+
+<text x="1055" y="356" fill="#6e7681" font-size="8">Admin deploys once → available everywhere</text>
+
+<!-- ═══════════════════════════════════════════
+     WHAT ADMIN MANAGES — summary
+     ═══════════════════════════════════════════ -->
+<rect x="1040" y="380" width="330" height="140" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1"/>
+<text x="1205" y="400" text-anchor="middle" fill="#e6edf3" font-size="10" font-weight="600">Admin Responsibilities</text>
+
+<rect x="1055" y="414" width="8" height="8" rx="2" fill="#3fb950"/>
+<text x="1072" y="422" fill="#e6edf3" font-size="8">Model lifecycle (deploy, update, retire)</text>
+
+<rect x="1055" y="434" width="8" height="8" rx="2" fill="#58a6ff"/>
+<text x="1072" y="442" fill="#e6edf3" font-size="8">Access control (subscriptions + auth policies)</text>
+
+<rect x="1055" y="454" width="8" height="8" rx="2" fill="#d29922"/>
+<text x="1072" y="462" fill="#e6edf3" font-size="8">Quota + usage (per-user budgets, team usage)</text>
+
+<rect x="1055" y="474" width="8" height="8" rx="2" fill="#f0883e"/>
+<text x="1072" y="482" fill="#e6edf3" font-size="8">Monitoring (Grafana dashboards via Thanos)</text>
+
+<rect x="1055" y="494" width="8" height="8" rx="2" fill="#8957e5"/>
+<text x="1072" y="502" fill="#e6edf3" font-size="8">Bulk key management (revoke compromised keys)</text>
+
+<!-- ═══════════════════════════════════════════
+     KEY PRINCIPLE
+     ═══════════════════════════════════════════ -->
+<rect x="1040" y="540" width="330" height="95" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1"/>
+<text x="1205" y="560" text-anchor="middle" fill="#e6edf3" font-size="10" font-weight="600">Key Principles</text>
+
+<text x="1055" y="580" fill="#3fb950" font-size="8" font-weight="600">✓</text>
+<text x="1072" y="580" fill="#8b949e" font-size="8">Admin never touches kubectl — UI → API → ACM</text>
+
+<text x="1055" y="596" fill="#3fb950" font-size="8" font-weight="600">✓</text>
+<text x="1072" y="596" fill="#8b949e" font-size="8">Deploy once → routable across all sites (SWIM)</text>
+
+<text x="1055" y="612" fill="#3fb950" font-size="8" font-weight="600">✓</text>
+<text x="1072" y="612" fill="#8b949e" font-size="8">All clusters identical — admin UI on any cluster</text>
+
+<text x="1055" y="628" fill="#3fb950" font-size="8" font-weight="600">✓</text>
+<text x="1072" y="628" fill="#8b949e" font-size="8">CRD-driven — GitOps auditable, reproducible</text>
+
+<!-- ═══════════════════════════════════════════
+     LEGEND
+     ═══════════════════════════════════════════ -->
+<g transform="translate(60, 680)">
+  <text x="0" y="12" fill="#8b949e" font-size="9" font-weight="600">LEGEND</text>
+  <line x1="55" y1="8" x2="78" y2="8" stroke="#58a6ff" stroke-width="2"/>
+  <text x="83" y="12" fill="#8b949e" font-size="8">Admin</text>
+  <line x1="120" y1="8" x2="143" y2="8" stroke="#d29922" stroke-width="2"/>
+  <text x="148" y="12" fill="#8b949e" font-size="8">Admin UI / Grid</text>
+  <line x1="240" y1="8" x2="263" y2="8" stroke="#8957e5" stroke-width="2"/>
+  <text x="268" y="12" fill="#8b949e" font-size="8">MaaS (API / Controller)</text>
+  <line x1="400" y1="8" x2="423" y2="8" stroke="#3fb950" stroke-width="2"/>
+  <text x="428" y="12" fill="#8b949e" font-size="8">ACM distribution</text>
+  <line x1="530" y1="8" x2="553" y2="8" stroke="#39d2c0" stroke-width="1.5" stroke-dasharray="4,3"/>
+  <text x="558" y="12" fill="#8b949e" font-size="8">Database</text>
+  <line x1="620" y1="8" x2="643" y2="8" stroke="#f0883e" stroke-width="1.5"/>
+  <text x="648" y="12" fill="#8b949e" font-size="8">Kuadrant / Observability</text>
+  <rect x="780" y="2" width="50" height="14" rx="3" fill="#161b22" stroke="#3fb950" stroke-width="1.5" stroke-dasharray="6,4"/>
+  <text x="805" y="12" text-anchor="middle" fill="#3fb950" font-size="7" font-weight="600">HUB</text>
+  <text x="840" y="12" fill="#8b949e" font-size="8">DNS designation</text>
+  <rect x="940" y="2" width="70" height="14" rx="3" fill="#2a1f0d" stroke="#d29922" stroke-width="0.8" stroke-dasharray="3,3"/>
+  <text x="975" y="12" text-anchor="middle" fill="#d29922" font-size="7" font-weight="600">TO BUILD</text>
+  <text x="1020" y="12" fill="#8b949e" font-size="8">Planned feature</text>
+</g>
+
+</svg>
+</div>
+</body>
+</html>
