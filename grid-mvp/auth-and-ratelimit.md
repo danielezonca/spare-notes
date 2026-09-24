@@ -175,7 +175,7 @@ Today maas-api supports two auth modes:
 2. **API key** — validated via the same `/internal/v1/api-keys/validate` path
 
 For tenant users accessing self-service endpoints (`GET /v1/models`,
-`POST /v1/api-keys`, usage/quota), requiring an OpenShift account is
+`POST /v1/api-keys`, `GET /v1/subscriptions`), requiring an OpenShift account is
 not viable — 8K+ engineers won't all have cluster access.
 
 ### Options
@@ -215,7 +215,7 @@ access without a browser, users use their API key.
 | **Multi-replica** | Shared via Limitador | Shared only with Valkey backend |
 | **Estimation** | None — counts after response | Reserve/reconcile: estimates upfront |
 | **API formats** | OpenAI only. **Anthropic NOT supported** | OpenAI (provider-configurable) |
-| **Stack** | Istio/Envoy + Kuadrant + Authorino + Limitador | Self-contained in Praxis |
+| **Stack** | Praxis AI + Kuadrant + Authorino + Limitador (migrating from Envoy) | Self-contained in Praxis |
 
 ### MVP: MaaS only
 

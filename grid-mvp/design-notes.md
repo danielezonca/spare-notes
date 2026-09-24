@@ -21,7 +21,7 @@ The AI Grid is a two-plane system:
 
 | Component | Role |
 |-----------|------|
-| Grid Gateway | Consumer entry point. JWT auth, geo fencing, token budget, site selection |
+| Grid Gateway | Consumer entry point. API key auth, geo fencing, site selection |
 | Grid Operator | SWIM gossip, metrics polling, overlay generation |
 | MaaS Gateway (Praxis AI) | Model routing, credential injection, API translation |
 | EPP | Endpoint picker — selects a pod within a pool |
@@ -96,8 +96,9 @@ enforce limits and meter directly without needing MaaS in the path.
 - Overlay renderer produces one routing candidate per (model, matched site)
   pair.
 
-**Open question**: Should automation (e.g., a controller watching vLLM
-deployments) auto-populate `InferenceProvider` CRs? Currently manual.
+**Open question** (resolved): Should automation auto-populate
+`InferenceProvider` CRs? Yes — MaaS → Grid reconciler, Phase 2.
+See [gaps.md](gaps.md).
 
 ### Cross-cluster model discovery via SWIM gossip
 
@@ -183,230 +184,14 @@ their backend kind, phase, and site information.
 
 ## Deployment Scenarios
 
-Two distinct paths to multi-cluster, depending on starting point.
-
-### Scenario A — Greenfield / Target Architecture
-
-No existing MaaS deployment. Grid is the platform from day one.
-
-```
-Consumer → Grid Gateway → picks site → site gateway → EPP → vLLM
-                       → external API (api_provider)
-```
-
-| Concern | How it works |
-|---------|-------------|
-| **Auth** | API key via maas-api (`api_key_auth` filter). Optionally also JWT from IdP for service-to-service. API key management (create, revoke, list) via maas-api remains the user-facing credential system |
-| **Rate limiting** | Grid `token_rate_limit` with Valkey (per-subject, cross-site global) |
-| **External models** | Grid `InferenceProvider` with `backendKind: api_provider`. Grid routes directly, enforces limits and meters |
-| **Metering** | Grid-level token counting and metering callout |
-| **Model catalog** | `InferenceProvider` CRs declare models. Overlay renders candidates |
-| **Key management** | maas-api provides key CRUD, validation, subscription binding. This is not a MaaS-vs-Grid concern — API key management is a platform service used by both scenarios |
-
-Even in greenfield, maas-api is the API key management layer. Building
-a separate key management system for Grid would be redundant — maas-api
-already handles creation, hashing, validation, subscription binding,
-revocation, and expiry. The Grid Gateway calls `api_key_auth` →
-maas-api on every request, same as the brownfield path.
-
-### Scenario B — Brownfield: Single MaaS cluster → Multi-cluster Grid
-
-Existing MaaS deployments with users, API keys, subscriptions, and
-external models already in production. Grid is added incrementally.
-
-**Key constraints:**
-- API keys MUST remain the same (zero user credential change)
-- Rate limiting and metering must keep working throughout
-- External models must remain rate-limited at all times
-
-#### Phase 0 — Today (single cluster, no Grid)
-
-```
-Consumer → MaaS Gateway → external API (ExternalModel CR)
-                        → local EPP → vLLM
-```
-
-Each site runs a standalone MaaS deployment:
-- Praxis AI gateway with direct upstream clusters
-- API key auth via maas-api
-- Rate limiting via Kuadrant/Limitador (per-user, per-model)
-- Metering via metering-service
-- External models via `ExternalModel` CR (rate-limited by Limitador)
-- No Grid awareness
-
-#### Phase 1 — Add Grid alongside existing MaaS
-
-```
-Consumer → Grid Gateway → picks site → MaaS Gateway → external API
-                                                     → local EPP → vLLM
-```
-
-- Install Grid Operator + Grid Gateway on each cluster
-- Grid Gateway uses `api_key_auth` calling maas-api (same auth as today)
-- Grid handles inter-site routing only (geo fencing, site selection)
-- **MaaS Gateway stays in the path for ALL traffic** — handles rate
-  limiting, metering, credential injection, external models
-- External providers stay at MaaS level (`ExternalModel` CR) — rate
-  limiting and metering continue to work unchanged
-- Grid `token_rate_limit` is **disabled** — MaaS/Limitador handles limits
-- Grid overlay starts with `InferenceProvider` CRs for local models only
-- Shared DB (RDS) across sites for key/subscription consistency
-
-#### Phase 2 — Enhanced Grid integration
-
-- maas-api validation response extended with region + budget metadata
-- Grid Gateway does geo fencing based on maas-api response (not JWT claims)
-- MaaS → Grid auto-reconciliation controller: `MaaSModelRef` creation
-  auto-generates `InferenceProvider` CRs in the Grid
-- Grid Operators gossip and poll signals across sites
-- MaaS rate limiting continues — still the single enforcement point
-
-#### Phase 3 — Full multi-cluster
-
-- All sites enrolled in the Grid mesh
-- Consumers enter through any site's Grid Gateway
-- Grid makes cost-aware, load-aware, geo-aware routing across all capacity
-- Signals polling provides real-time load visibility across sites
-- MaaS handles per-model limits, metering, external providers at each site
-
-#### Phase 4 — Grid-native external models + rate limiting (optional)
-
-Only when cross-site global budgets become a requirement:
-
-- Enable Grid `token_rate_limit` with Valkey (per-subject, cross-site)
-- Create `InferenceProvider` CRs with `backendKind: api_provider` for
-  external APIs — Grid routes directly with its own limits and metering
-- MaaS rate limiting continues for per-model limits (complementary)
-- Grid: "alice can use 500K tokens/day total across all sites"
-- MaaS: "team-a can use 1M tokens/month on claude-sonnet on this site"
-- Retire MaaS-level `ExternalModel` config once Grid-level is validated
-
-### Customer Impact During Migration (Scenario B)
-
-**Key requirement: API keys MUST remain the same.** A tenant user should
-not need to regenerate or reconfigure their API key when the platform
-moves from single-cluster to multi-cluster. The key was minted by
-maas-api, stored as a hash in the DB — as long as the DB is shared
-(Phase 1) or replicated (Phase 2+), the same key validates on any site.
-
-**What changes for the user:**
-
-| Concern | Single cluster (Phase 0) | Multi-cluster (Phase 1+) | Impact |
-|---------|-------------------------|-------------------------|--------|
-| API key | `sk-oai-abc123...` | Same key | **None** |
-| Base URL | `https://ai-gateway.site-a.example.com` | `https://ai-gateway.example.com` (DNS) | **Config change** if no stable DNS |
-| Models available | Site-local only | All sites' models | Transparent improvement |
-| Rate limits | Per-model (MaaS) | Same | **None** |
-| Metering | Site-local | Same (shared DB) | **None** |
-
-**URL migration strategy:**
-
-- **With DNS (recommended)**: Put a stable CNAME (`ai-gateway.example.com`)
-  in front from day one, even in single-cluster. When Grid goes live, DNS
-  routes to the nearest site's Grid Gateway. Users never change their URL.
-
-- **Without DNS**: Users need to update `ANTHROPIC_BASE_URL` /
-  `OPENAI_BASE_URL` once. Minimize by setting up stable DNS before
-  migration. Old URL can keep working during a transition period (old
-  MaaS gateway stays active, Grid Gateway sits in front).
-
-**Migration checklist for zero-disruption:**
-1. Set up stable DNS name before Grid rollout
-2. Verify API keys work on the new endpoint (shared DB)
-3. Communicate URL change (if DNS wasn't pre-staged) with transition
-   period where both old and new URLs work
-4. Old MaaS gateway remains active — becomes the site-local gateway
-   behind the Grid Gateway
-
-### Admin Tooling and Multi-cluster Distribution
-
-The tenant admin does not interact with clusters directly. The
-management stack is:
-
-```
-Tenant Admin → Admin UI → Management API → GitOps / ACM / Ansible → clusters
-```
-
-- **Tenant Admin UI**: Web interface for model deployment, quota
-  configuration, and usage dashboards. **Provided by RHCE** (Red Hat
-  Cloud Extensions).
-- **Management API**: Orchestration layer between the UI and the
-  multi-cluster distribution system. Also serves quota and usage
-  queries against the shared DB. **Provided by RHCE**.
-- **Tenant User UI**: Self-service portal for model discovery, API
-  key management, and personal usage. Can be a standalone app or a
-  Red Hat Developer Hub / Backstage plugin.
-- **GitOps / RHCE / ACM / Ansible**: Red Hat Cloud Extensions and
-  OpenShift Advanced Cluster Management distribute MaaS CRDs
-  (MaaSModelRef, ExternalModel, MaaSSubscription, MaaSAuthPolicy)
-  to target clusters. The admin declares intent in the UI, the
-  pipeline pushes CRDs to the right clusters.
-- **MaaS → Grid reconciler** (to build): On each cluster, watches
-  for ready MaaSModelRefs and auto-creates `InferenceProvider` CRs
-  so models become grid-routable without manual Grid CRD management.
-
-### Decision: All clusters are equivalent — no special hub deployment
-
-Every cluster runs the identical stack:
-
-```
-Every cluster:
-  Grid Gateway + Grid Operator          (data + control plane)
-  MaaS Gateway + maas-controller        (site-local enforcement)
-  maas-api + metering-service           (shared DB)
-  Tenant Admin UI + Management API      (stateless)
-  Tenant User UI                        (stateless)
-```
-
-The "hub" is a **DNS designation**, not a deployment difference:
-- `admin.example.com` → Admin UI (any cluster)
-- `portal.example.com` → User UI (any cluster)
-- `ai-gateway.example.com` → nearest Grid Gateway (geo-routed)
-
-**Rationale**:
-- **No special snowflake** — ops deploys the same stack everywhere
-- **HA/DR** — hub goes down, repoint DNS, everything works
-- **UIs are stateless** — they call APIs, APIs read shared DB/overlay.
-  Any cluster can serve any UI
-- **Consistent with Grid design** — Grid already treats all sites as
-  equivalent for routing and enforcement
-- The Grid hub (SWIM seed) and the management hub (user-facing DNS)
-  are the same cluster by convention, but can be split if needed
-
-### Observability — ACM Multi-cluster Observability
-
-Metrics aggregation across clusters uses the **OpenShift Multi-cluster
-Observability Operator** (part of ACM):
-
-```
-Cluster A (Prometheus) ──┐
-                         ├── Thanos (ACM) ── Grafana dashboards
-Cluster B (Prometheus) ──┘
-```
-
-- Each cluster's components (MaaS gateway, Grid Operator, metering-service,
-  Limitador) emit **Prometheus metrics**
-- ACM's **Multi-cluster Observability Operator** collects and aggregates
-  into a central **Thanos** instance
-- **Grafana dashboards** provide cross-cluster views: token usage per user,
-  model latency, cost breakdown, rate limit utilization, Grid routing
-  decisions
-- The **Tenant Admin UI** links to Grafana for usage dashboards rather
-  than building custom visualization — reuse existing observability infra
-
-This replaces the need for a custom cross-cluster metering aggregation
-system for observability purposes. Metering-service still handles the
-transactional data (API key → usage → quota enforcement) via the shared
-DB, but the dashboards and alerting use the Thanos/Grafana stack.
+See [deployment-scenarios.md](deployment-scenarios.md) for greenfield vs brownfield
+migration with phased rollout, customer impact analysis, and
+migration checklist.
 
 ### Open questions
 
 - **Enrollment automation**: Manual token minting OK for dogfood?
   Or automate for scale?
-- **MaaS → Grid auto-reconciliation**: When a tenant admin creates a
-  `MaaSModelRef` + `MaaSSubscription`, should a controller auto-create
-  the corresponding `InferenceProvider` CR? Critical for smooth upgrade
-  path — deploy a model in MaaS, it automatically becomes grid-routable.
 
 ---
 
@@ -518,10 +303,10 @@ via kubectl/GitOps and uses admin APIs.
 | Grant model access | Create `MaaSSubscription` (rate limits) + `MaaSAuthPolicy` (subjects) | Exists |
 | Configure tenant settings | Create/update `MaasTenantConfig` | Exists |
 | Bulk revoke API keys | `POST /v1/api-keys/bulk-revoke` | Exists |
-| Configure per-user quota | `PATCH /api/v1/admin/quotas/{username}` on metering-service | **To build** |
-| Get all users' usage | `GET /api/v1/admin/usage` on metering-service | **To build** |
+| Configure token rate limits | `MaaSSubscription.tokenRateLimits` CRD | Exists |
+| Monitor usage | Grafana dashboards (Thanos / ACM observability) | Exists |
 
-**Auth**: K8s RBAC for CRDs, offline token for metering-service APIs.
+**Auth**: K8s RBAC for CRDs.
 
 ### Tenant User
 
@@ -536,8 +321,7 @@ only via HTTP APIs — never touches the cluster.
 | List own API keys | `POST /v1/api-keys/search` on maas-api | Exists |
 | Revoke own API key | `DELETE /v1/api-keys/:id` on maas-api | Exists |
 | Use models | `POST /v1/chat/completions` via gateway | Exists |
-| Get personal usage | Self-service usage endpoint on metering-service | **Needs design** |
-| View remaining quota | Self-service quota endpoint on metering-service | **Needs design** |
+| View usage | Grafana dashboards (Thanos / ACM observability) | Exists |
 
 **Auth**: API key or OpenShift token for maas-api. API key for gateway.
 
@@ -564,11 +348,6 @@ Tenant Admin
   create the corresponding `InferenceProvider` CR in the Grid? This would
   bridge the MaaS management plane with Grid's routing plane without
   requiring the admin to manage both CRD sets.
-
-- **Self-service usage/quota APIs**: maas-api handles model listing and
-  key management for tenant users. Metering-service handles usage/quota
-  for admins. Need a user-scoped subset — auth via API key → username
-  resolution (maas-api already does this in validation).
 
 - **Where does the management plane live in multi-cluster?**
 
@@ -608,114 +387,17 @@ Tenant Admin
 
 ## Decision: Rate limiting — MaaS only for MVP, Grid later
 
-**Context**: Two rate limiting implementations exist:
-- MaaS: Kuadrant/Limitador, per-user per-subscription per-model, CRD-driven,
-  fixed window, counts actual LLM tokens from response body
-- Grid: Praxis `token_rate_limit`, per-subject across all models,
-  sliding window or token bucket, in-process with reserve/reconcile
-
-Both count LLM tokens (not HTTP requests). They are complementary in
-scope but running both risks double-counting and adds complexity.
-
-**Decision**: For the MVP, disable `token_rate_limit` at the Grid Gateway.
-Rate limiting stays at the MaaS level only (Kuadrant/Limitador).
-
-**Rationale**:
-- MaaS rate limiting is already working and CRD-driven — zero new work
-- Avoids double-counting (only one layer deducts from budgets)
-- Grid's `token_rate_limit` needs Valkey for multi-replica accuracy,
-  and CRD-driven config generation doesn't exist yet
-- The Praxis team has an open design question about the Kuadrant
-  relationship (ai#127) — let that settle before taking a dependency
-
-**What MaaS rate limiting gives us for the MVP**:
-- Per-user, per-model token limits (from `MaaSSubscription.tokenRateLimits`)
-- CRD-driven — admin creates subscription, limits auto-apply
-- Shared Limitador state within a site (single instance)
-
-**What we defer to post-MVP**:
-- Cross-site global budget enforcement (alice uses tokens on site-A
-  and site-B, combined limit). Requires either shared Limitador state
-  across sites or Grid's `token_rate_limit` with Valkey
-- Reserve/reconcile (Grid's smarter approach that blocks over-budget
-  requests before they hit the backend)
-- Per-subject global budget across all models (Grid's scope)
-
-**Migration path**: When cross-site budgets become a requirement, enable
-Grid's `token_rate_limit` with Valkey backend for global per-subject
-enforcement. MaaS rate limiting continues for fine-grained per-model
-limits. The two layers become complementary:
-- Grid: "alice can use 500K tokens/day total across all sites"
-- MaaS: "team-a can use 1M tokens/month on claude-sonnet on this site"
+See [auth-and-ratelimit.md](auth-and-ratelimit.md) for detailed comparison
+of MaaS (Kuadrant/Limitador) vs Grid (Praxis token_rate_limit),
+MVP decision rationale, and post-MVP migration path.
 
 ---
 
 ## Decision: Auth migration — API key at the Grid level via maas-api
 
-**Context**: The v3 Grid demo uses JWT-only auth (HS256, local signature
-verification). Existing MaaS deployments use API key auth via maas-api
-(`api_key_auth` filter → `POST /internal/v1/api-keys/validate`). Users
-have API keys today and must keep using them.
-
-**Decision**: Use the `api_key_auth` filter at the Grid Gateway level,
-integrated with maas-api. Extend maas-api's validation response to
-return Grid-relevant metadata (region, budget).
-
-### How it works
-
-The Grid Gateway runs the same `praxis-ai-proxy` binary and has access
-to all filters. The combined filter chain:
-
-```
-api_key_auth → model_to_header → intelligent_route → token_rate_limit → token_count → load_balancer
-```
-
-1. `api_key_auth` calls maas-api `/internal/v1/api-keys/validate`
-2. maas-api returns: username, groups, **region** (from tenant config),
-   **token budget** (from subscription rate limits)
-3. `api_key_auth` (or a follow-up filter) promotes region and budget to
-   headers (e.g., `X-Grid-Region`, `X-Grid-Rate`)
-4. `intelligent_route` reads region from header for geo fencing (instead
-   of JWT `grid_region` claim)
-5. `token_rate_limit` uses `authenticated_subject` for per-user budget
-6. Rest of the chain works unchanged
-
-### What needs to change
-
-**maas-api**: Extend the validation response to include:
-- `region` — sourced from `AITenant` or `MaasTenantConfig` (the tenant's
-  allocated geo region)
-- `token_budget` / `rate_limits` — sourced from the matched
-  `MaaSSubscription.tokenRateLimits`
-
-**Praxis AI**: The `api_key_auth` filter (or a new lightweight filter)
-needs to map the extended validation response fields into headers that
-`intelligent_route` and `token_rate_limit` can consume. Alternatively,
-`intelligent_route` could accept a header-based region source alongside
-the existing JWT claim-based `match_claims`.
-
-### Why this approach
-
-- **Users keep their API keys** — zero credential change
-- **No JWT infrastructure needed** — no Keycloak, no token exchange,
-  no new credential format for users to learn
-- **Same auth flow as today's dogfood** — `api_key_auth` + maas-api is
-  proven in production. Just extended with metadata
-- **Grid features work** — geo routing and token budget operate on
-  identity + metadata from maas-api, not from JWT claims
-- **JWT can be added later** as an additional auth path for
-  service-to-service or automation use cases (dual-stack)
-
-### Rejected alternatives
-
-- **JWT only (v3 approach)**: Requires all users to get JWTs instead
-  of API keys. Breaks existing users. Needs IdP infrastructure.
-- **API key → JWT exchange**: User presents API key, gets back a JWT.
-  Adds complexity (exchange endpoint, token refresh). Unnecessary if
-  maas-api can return the needed metadata directly.
-- **Dual-stack from day one**: Supporting both API keys and JWTs adds
-  testing surface. Start with API keys (existing users), add JWT
-  later when there's a real need (automation, cross-org federation).
+See [auth-and-ratelimit.md](auth-and-ratelimit.md) for detailed auth flow,
+filter chain configuration, maas-api validation response extension,
+and AuthenticatedIdentity bridge design.
 
 ---
 

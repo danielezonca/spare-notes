@@ -22,7 +22,7 @@ Consumer → Grid Gateway → picks site → site gateway → EPP → vLLM
 | **Auth** | API key via maas-api (`api_key_auth` filter). Optionally also JWT from IdP for service-to-service. API key management (create, revoke, list) via maas-api remains the user-facing credential system |
 | **Rate limiting** | Grid `token_rate_limit` with Valkey (per-subject, cross-site global) |
 | **External models** | Grid `InferenceProvider` with `backendKind: api_provider`. Grid routes directly, enforces limits and meters |
-| **Metering** | Grid-level token counting and metering callout |
+| **Observability** | Prometheus metrics + Thanos/Grafana dashboards |
 | **Model catalog** | `InferenceProvider` CRs declare models. Overlay renders candidates |
 | **Key management** | maas-api provides key CRUD, validation, subscription binding. This is not a MaaS-vs-Grid concern — API key management is a platform service used by both scenarios |
 
@@ -36,8 +36,9 @@ maas-api on every request, same as the brownfield path.
 
 - Simplest architecture — one routing layer, one auth model, one rate
   limiting engine
-- Requires building out Grid's metering and management APIs (model
-  listing, key management, usage dashboards) which MaaS already provides
+- Requires building out Grid's management APIs (usage dashboards) —
+  model listing and key management already provided by maas-api in both
+  scenarios
 - No migration concerns — no existing users to break
 - Grid handles everything: routing, limits, external providers, metering
 
@@ -65,6 +66,7 @@ Each site runs a standalone MaaS deployment:
 - Praxis AI gateway with direct upstream clusters
 - API key auth via maas-api
 - Rate limiting via Kuadrant/Limitador (per-user, per-model)
+- Observability via Prometheus metrics
 - External models via `ExternalModel` CR (rate-limited by Limitador)
 - No Grid awareness
 
@@ -80,9 +82,9 @@ What happens:
 - Grid Gateway uses `api_key_auth` calling maas-api (same auth as today)
 - Grid handles inter-site routing only (geo fencing, site selection)
 - **MaaS Gateway stays in the path for ALL traffic** — handles rate
-  limiting, metering, credential injection, external models
+  limiting, credential injection, external models
 - External providers stay at MaaS level (`ExternalModel` CR) — rate
-  limiting and metering continue to work unchanged
+  limiting continues to work unchanged
 - Grid `token_rate_limit` is **disabled** — MaaS/Limitador handles limits
 - Grid overlay starts with `InferenceProvider` CRs for local models only
 - Shared DB across sites for key/subscription consistency
@@ -109,7 +111,7 @@ What doesn't change for users:
 - Consumers enter through any site's Grid Gateway
 - Grid makes cost-aware, load-aware, geo-aware routing across all capacity
 - Signals polling provides real-time load visibility across sites
-- MaaS handles per-model limits, metering, external providers at each site
+- MaaS handles per-model limits, external providers at each site
 
 ### Phase 4 — Grid-native external models + rate limiting (optional)
 
@@ -141,7 +143,7 @@ maas-api, stored as a hash in the DB — as long as the DB is shared
 | Base URL | `https://ai-gateway.site-a.example.com` | `https://ai-gateway.example.com` (DNS) | **Config change** if no stable DNS |
 | Models available | Site-local only | All sites' models | Transparent improvement |
 | Rate limits | Per-model (MaaS) | Same | **None** |
-| Metering | Site-local | Same (shared DB) | **None** |
+| Observability | Site-local Prometheus | Aggregated via Thanos | Transparent improvement |
 
 ### URL migration strategy
 
@@ -194,7 +196,7 @@ The "hub" is a **DNS designation**, not a deployment difference:
 ### Shared DB: now, replicated later
 
 **Phase 1 (shared DB):** All sites connect to the same PostgreSQL
-instance. Keys, subscriptions, and usage are immediately consistent.
+instance. Keys and subscriptions are immediately consistent.
 Simple, no replication logic. Works when sites are same-region.
 
 **Phase 2+ (hub + reconciler):** When sites span regions or cloud
