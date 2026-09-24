@@ -53,7 +53,7 @@ configured at two layers:
   All traffic must flow through the MaaS Gateway to be rate-limited.
   If external models were at the Grid level, the Grid Gateway would
   route directly to the external API, bypassing MaaS — **no rate
-  limiting, no metering, no credential injection**.
+  limiting** (Limitador is at MaaS level).
 - Existing MaaS deployments already route to external providers at
   the site level via `ExternalModel` CR. This works today.
 - The Grid's role in the MVP is cross-site routing between MaaS
