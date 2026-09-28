@@ -7,7 +7,7 @@ management across the AI platform.
 
 | Document | Description |
 |----------|------------|
-| [Rate Limiting Migration](rate-limiting-migration.md) | Migration from `external_metering` (Pricetag dogfood) to Praxis `token_rate_limit`. Feature comparison, multi-tier quotas, usage recording requirements, phased migration plan |
+| [Rate Limiting Comparison](rate-limiting-migration.md) | `external_metering` vs Praxis `token_rate_limit`: feature comparison, multi-tier quotas, usage recording requirements, the change needed to adopt it |
 
 ## Research
 

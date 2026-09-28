@@ -1,8 +1,8 @@
-# Rate Limiting Migration: external_metering → token_rate_limit
+# Rate Limiting: external_metering vs token_rate_limit
 
 Comparison of the Pricetag dogfood's current rate limiting (external_metering
-+ metering-service) vs the Praxis native token_rate_limit filter, to plan
-the migration path.
+and metering-service) vs the Praxis native token_rate_limit filter, and the
+change needed to adopt it.
 
 ---
 
@@ -65,13 +65,13 @@ via CloudEvents. This powers:
 data anywhere. Prometheus metrics provide aggregated counters but
 not the per-request granularity needed for billing line items.
 
-**This is a hard requirement**: any migration plan MUST preserve
+**This is a hard requirement**: any change MUST preserve
 per-request usage recording with enough detail for billing and
 chargeback (user, model, tokens, timestamp, cost). Prometheus/Thanos
 is sufficient for dashboards but NOT for billing reconciliation —
 billing needs transactional records, not aggregated time series.
 
-**The usage recording pipeline must survive the migration regardless
+**The usage recording pipeline must survive regardless
 of which enforcement mechanism is used.** This means either:
 - Keep a usage-recording filter (CloudEvents or similar) in the
   chain alongside `token_rate_limit`
@@ -126,9 +126,7 @@ dependency but no per-request latency (async reconciliation).
 
 ---
 
-## Migration Path
-
-### Phase 1 — Dual mode (split enforcement from recording)
+## The Change: Split Enforcement from Recording
 
 ```
 Filter chain:
@@ -148,38 +146,30 @@ Filter chain:
 - Requires a config flag on `external_metering` to disable the balance
   check while keeping the event reporting
 
-### Phase 2 — Optimize recording
+### What this delivers
 
-- Evaluate whether CloudEvent recording can move to an async/buffered
-  pattern (batch writes, reduce per-request DB pressure)
-- Grafana dashboards (Thanos) replace metering-service dashboard views
-  for operational monitoring
-- metering-service continues for **billing/chargeback** data (per-request
-  transactional records that Prometheus cannot replace)
-- Consider splitting metering-service: retire the balance-check endpoint,
-  keep the event ingestion + reporting endpoints
+This single change delivers the full enforcement upgrade with zero disruption
+to the recording pipeline:
 
-### Phase 3 — Full native
+- Reserve/reconcile (no overshooting)
+- Sliding window (no boundary spikes)
+- Multi-tier quotas (hourly + daily + monthly)
+- Anthropic format support
+- Hot-path HTTP call eliminated
+- Limitador retired
+- Usage recording preserved (CloudEvents → PostgreSQL unchanged)
+- Billing/chargeback pipeline intact
 
-- `token_rate_limit` with Valkey backend for multi-replica accuracy
-- Multiple rules for hourly/daily/monthly caps
-- Prometheus/Thanos/Grafana for operational dashboards
-- Usage recording pipeline for billing/chargeback:
-  - Option A: `external_metering` filter (event recording only, no
-    balance check) + metering-service event ingestion
-  - Option B: New lightweight event-emitter filter + event store
-  - Option C: `token_rate_limit` extended to emit usage events on
-    reconciliation (upstream feature request)
-- **metering-service balance-check endpoint retired** — enforcement is
-  fully `token_rate_limit`
-- **metering-service event ingestion may persist** — depends on
-  billing/chargeback requirements
+CloudEvent recording is already async (`tokio::spawn`, fire-and-forget)
+— no optimization needed. Grafana replacing dashboards happens
+independently via Grid/ACM. Further optimizations (retiring
+metering-service entirely) are optional future work — see end of doc.
 
 ---
 
-## What needs to exist before migration
+## Prerequisites
 
-### Critical (Phase 1 blockers)
+### Critical (blockers)
 
 | Prerequisite | Description |
 |-------------|-------------|
@@ -187,31 +177,105 @@ Filter chain:
 | `token_rate_limit` multi-rule support | Multiple rules per filter instance (hourly + daily + monthly). Already supported in code — needs config validation |
 | Per-subject rules | Configurable per-subject budgets (not global env var). Already supported via `key: authenticated_subject` |
 
-### Important (Phase 2-3)
+### Important (when scaling)
 
 | Prerequisite | Description |
 |-------------|-------------|
-| `token_rate_limit` with Valkey | Multi-replica state sharing for accurate enforcement across gateway replicas |
-| Dashboard migration | Grafana dashboards (Thanos) for operational monitoring. Does NOT replace billing data |
-| CRD-driven config generation | Generate `token_rate_limit` rules from MaaS subscription or similar CRD source |
-| Billing data strategy | Determine long-term home for per-request transactional usage records (billing, chargeback, cost allocation). Options: keep metering-service event ingestion, new event store, or extend `token_rate_limit` to emit events |
+| `token_rate_limit` with Valkey | Multi-replica state sharing for accurate enforcement. Without it, 2 replicas = effectively 2x budget. Needed when running multiple gateway replicas |
+| CRD-driven config generation | Generate `token_rate_limit` rules from MaaS subscription or similar CRD source. Without it, config is manual praxis.yaml |
 
 ---
 
-## Open Questions
+## Precondition: Cost-based budget enforcement
 
-- **Cost-based budgets**: Metering-service has a pricing module
-  (`internal/pricing/pricing.go`) for dollar-based budgets. `token_rate_limit`
-  only counts tokens. If the platform needs "$300/month" budgets (not
-  "5M tokens/month"), cost calculation needs to happen somewhere —
-  either in the estimation strategy or as a separate concern.
+**This must be resolved before adopting `token_rate_limit`.**
 
-- **Billing reconciliation**: If external billing systems
-  scrape usage data for billing, they currently read from the
-  metering-service DB. After migration, they'd need to read from
-  Prometheus/Thanos or a new data source. This is an integration
-  dependency outside the gateway.
+Pricetag currently enforces "$300/month" budgets. `token_rate_limit`
+counts **tokens**, not **dollars**. Different models have wildly
+different per-token costs (Claude Sonnet input: $3/MTok, output:
+$15/MTok vs GPT-4o-mini: $0.15/$0.60). Switching from
+`external_metering` to `token_rate_limit` without solving this
+**loses the dollar-based enforcement that Pricetag provides today**.
 
-- **Concurrent request limiting**: Neither approach handles "max N
-  simultaneous requests." If this is a requirement, it needs a separate
-  mechanism (semaphore filter, connection limit at LB level).
+**What Pricetag has today**: metering-service pricing module
+(`internal/pricing/pricing.go`) with LiteLLM pricing data. Cost is
+calculated per-request from token counts × model pricing. The balance
+check enforces a monthly dollar cap via token-to-cost conversion.
+
+**Options**:
+1. **Token budgets per model** — set model-specific token limits that
+   approximate the dollar budget (e.g., 500K tokens/month on Claude
+   Sonnet ≈ $300). Simple, requires admin to do the math. Breaks
+   when pricing changes.
+2. **Cost-weighted tokens** — use `token_rate_limit`'s token-type
+   weights (#1132) to normalize tokens to a cost unit per model.
+   Budget is in "cost units" not raw tokens.
+3. **Cost calculation in estimation strategy** — extend
+   `token_rate_limit` estimation to multiply tokens × price at
+   reservation time. Budget expressed in cents. Upstream feature
+   request.
+4. **Keep `external_metering` balance check for dollar budgets** —
+   don't disable the balance check for dollar-denominated budgets.
+   Use `token_rate_limit` for token budgets (burst/daily/hourly) and
+   `external_metering` for the monthly dollar cap. Two enforcers
+   with non-overlapping scopes.
+
+**Recommendation**: Option 4 until a Praxis-native cost-aware
+enforcement exists — keep `external_metering` for the monthly dollar
+cap, use `token_rate_limit` for token-based burst/daily limits. This
+preserves Pricetag's current dollar enforcement while adding the new
+capabilities. The change to `token_rate_limit` is additive, not a
+replacement, until cost-based enforcement is available natively.
+
+## Tracking: Concurrent request limiting
+
+**Not a regression for Pricetag** — MaaS already provides this via
+Kuadrant/Limitador request-rate policies. Ongoing work in Praxis to
+include it natively. Track but no action needed for this change.
+
+**Current state**:
+- MaaS/Limitador: can enforce request-count limits per subscription
+  (not token-count). Available today via `RateLimitPolicy` CRD.
+- Praxis: `rate_limit` filter does request-count rate limiting
+  (token bucket). Available in core. Does requests/second, not
+  concurrent in-flight.
+- Praxis `token_rate_limit`: token-count only, no request-count or
+  concurrency. Compositional keys (#1334) may enable per-app keying.
+- Customer requirement: max N simultaneous requests per app+model.
+  This is a concurrency (semaphore) concern, distinct from rate
+  (requests/second) or budget (tokens/window).
+
+**Tracking**: Praxis team is aware. No specific issue for
+semaphore-style concurrency limiting yet. MaaS/Limitador covers the
+request-rate case for now. Flag if customer escalates concurrency
+as a blocker.
+
+---
+
+## Optional Future Work — Retire metering-service from data path
+
+If metering-service becomes an operational burden or the recording
+pipeline needs to change, the `external_metering` filter could be
+replaced entirely. This is NOT needed and provides
+marginal benefit (one less Go service to operate) at significant cost
+(building a recording replacement).
+
+**Options if pursued:**
+- **Option A**: Keep `external_metering` filter as recorder only
+  (current state after the change — already works)
+- **Option B**: New lightweight event-emitter filter that writes
+  usage events without any enforcement logic
+- **Option C**: Extend `token_rate_limit` to emit usage events on
+  reconciliation (upstream feature request to Praxis team)
+
+**What would be retired:**
+- metering-service balance-check endpoint (already dead after the change)
+- metering-service event ingestion (replaced by Option B or C)
+- metering-service dashboard (replaced by Grafana/Thanos)
+
+**What must be preserved regardless:**
+- Per-request transactional usage records for billing/chargeback
+- Token breakdown (prompt, completion, cache, reasoning)
+- Identity attribution (user, group, subscription, model, provider)
+- CloudEvents format compatibility (if downstream billing systems
+  consume it)
