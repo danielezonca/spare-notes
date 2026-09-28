@@ -1,8 +1,25 @@
 # Rate Limiting: external_metering vs token_rate_limit
 
-Comparison of the Pricetag dogfood's current rate limiting (external_metering
-and metering-service) vs the Praxis native token_rate_limit filter, and the
-change needed to adopt it.
+## Executive Summary
+
+**Goal**: Consolidate rate limiting on core Praxis infrastructure
+(`token_rate_limit`) instead of the current `external_metering` +
+metering-service stack.
+
+**Gaps preventing full consolidation today:**
+- **Cost-aware enforcement** — `token_rate_limit` counts tokens, not
+  dollars. Quotas are cost-driven (token cost varies by model and
+  type), so enforcement must account for per-model pricing
+- **CloudEvent usage pipeline** — per-request usage events (tokens,
+  cost, identity, model) must be emitted in real time for billing,
+  chargeback, and admin visibility. `token_rate_limit` enforces but
+  does not record
+- **CRD-driven config** — no controller generates `token_rate_limit`
+  rules from CRDs today. Config is manual
+
+Until these gaps close, `token_rate_limit` is **additive** (new
+burst/daily limits) alongside `external_metering` (existing dollar
+caps + usage recording), not a replacement.
 
 ---
 
@@ -126,6 +143,49 @@ dependency but no per-request latency (async reconciliation).
 
 ---
 
+## Precondition: Cost-based budget enforcement
+
+**This must be resolved before adopting `token_rate_limit`.**
+
+Pricetag currently enforces "$300/month" budgets. `token_rate_limit`
+counts **tokens**, not **dollars**. Different models have wildly
+different per-token costs (Claude Sonnet input: $3/MTok, output:
+$15/MTok vs GPT-4o-mini: $0.15/$0.60). Switching from
+`external_metering` to `token_rate_limit` without solving this
+**loses the dollar-based enforcement that Pricetag provides today**.
+
+**What Pricetag has today**: metering-service pricing module
+(`internal/pricing/pricing.go`) with LiteLLM pricing data. Cost is
+calculated per-request from token counts × model pricing. The balance
+check enforces a monthly dollar cap via token-to-cost conversion.
+
+**Options**:
+1. **Token budgets per model** — set model-specific token limits that
+   approximate the dollar budget (e.g., 500K tokens/month on Claude
+   Sonnet ≈ $300). Simple, requires admin to do the math. Breaks
+   when pricing changes.
+2. **Cost-weighted tokens** — use `token_rate_limit`'s token-type
+   weights (#1132) to normalize tokens to a cost unit per model.
+   Budget is in "cost units" not raw tokens.
+3. **Cost calculation in estimation strategy** — extend
+   `token_rate_limit` estimation to multiply tokens × price at
+   reservation time. Budget expressed in cents. Upstream feature
+   request.
+4. **Keep `external_metering` balance check for dollar budgets** —
+   don't disable the balance check for dollar-denominated budgets.
+   Use `token_rate_limit` for token budgets (burst/daily/hourly) and
+   `external_metering` for the monthly dollar cap. Two enforcers
+   with non-overlapping scopes.
+
+**Recommendation**: Option 4 until a Praxis-native cost-aware
+enforcement exists — keep `external_metering` for the monthly dollar
+cap, use `token_rate_limit` for token-based burst/daily limits. This
+preserves Pricetag's current dollar enforcement while adding the new
+capabilities. The change to `token_rate_limit` is additive, not a
+replacement, until cost-based enforcement is available natively.
+
+---
+
 ## The Change: Split Enforcement from Recording
 
 ```
@@ -183,49 +243,6 @@ metering-service entirely) are optional future work — see end of doc.
 |-------------|-------------|
 | `token_rate_limit` with Valkey | Multi-replica state sharing for accurate enforcement. Without it, 2 replicas = effectively 2x budget. Needed when running multiple gateway replicas |
 | CRD-driven config generation | Generate `token_rate_limit` rules from MaaS subscription or similar CRD source. Without it, config is manual praxis.yaml |
-
----
-
-## Precondition: Cost-based budget enforcement
-
-**This must be resolved before adopting `token_rate_limit`.**
-
-Pricetag currently enforces "$300/month" budgets. `token_rate_limit`
-counts **tokens**, not **dollars**. Different models have wildly
-different per-token costs (Claude Sonnet input: $3/MTok, output:
-$15/MTok vs GPT-4o-mini: $0.15/$0.60). Switching from
-`external_metering` to `token_rate_limit` without solving this
-**loses the dollar-based enforcement that Pricetag provides today**.
-
-**What Pricetag has today**: metering-service pricing module
-(`internal/pricing/pricing.go`) with LiteLLM pricing data. Cost is
-calculated per-request from token counts × model pricing. The balance
-check enforces a monthly dollar cap via token-to-cost conversion.
-
-**Options**:
-1. **Token budgets per model** — set model-specific token limits that
-   approximate the dollar budget (e.g., 500K tokens/month on Claude
-   Sonnet ≈ $300). Simple, requires admin to do the math. Breaks
-   when pricing changes.
-2. **Cost-weighted tokens** — use `token_rate_limit`'s token-type
-   weights (#1132) to normalize tokens to a cost unit per model.
-   Budget is in "cost units" not raw tokens.
-3. **Cost calculation in estimation strategy** — extend
-   `token_rate_limit` estimation to multiply tokens × price at
-   reservation time. Budget expressed in cents. Upstream feature
-   request.
-4. **Keep `external_metering` balance check for dollar budgets** —
-   don't disable the balance check for dollar-denominated budgets.
-   Use `token_rate_limit` for token budgets (burst/daily/hourly) and
-   `external_metering` for the monthly dollar cap. Two enforcers
-   with non-overlapping scopes.
-
-**Recommendation**: Option 4 until a Praxis-native cost-aware
-enforcement exists — keep `external_metering` for the monthly dollar
-cap, use `token_rate_limit` for token-based burst/daily limits. This
-preserves Pricetag's current dollar enforcement while adding the new
-capabilities. The change to `token_rate_limit` is additive, not a
-replacement, until cost-based enforcement is available natively.
 
 ## Tracking: Concurrent request limiting
 
