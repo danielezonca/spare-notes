@@ -7,6 +7,7 @@ inference across clusters with MaaS (Models-as-a-Service) integration.
 
 | Document | Description |
 |----------|------------|
+| [Personas](personas.md) | Three personas: Platform Admin, Tenant Admin, Tenant User — roles, boundaries, cluster visibility |
 | [Design Notes](design-notes.md) | Architecture decisions, migration strategy, component overview |
 | [Gaps](gaps.md) | Changes required to existing components (maas-api, Praxis AI, Grid Operator, infra) |
 | [Auth & Rate Limiting](auth-and-ratelimit.md) | Detailed auth and rate limiting flows across Grid and MaaS layers |
@@ -18,6 +19,7 @@ inference across clusters with MaaS (Models-as-a-Service) integration.
 | Diagram | Preview |
 |---------|---------|
 | Multi-cluster Data Plane | [View](https://htmlpreview.github.io/?https://github.com/danielezonca/spare-notes/blob/main/grid-mvp/grid-dataplane.html) |
+| Platform Admin Flows | [View](https://htmlpreview.github.io/?https://github.com/danielezonca/spare-notes/blob/main/grid-mvp/grid-platform-admin.html) |
 | Tenant Admin Flows | [View](https://htmlpreview.github.io/?https://github.com/danielezonca/spare-notes/blob/main/grid-mvp/grid-tenant-admin.html) |
 | Tenant User Flows | [View](https://htmlpreview.github.io/?https://github.com/danielezonca/spare-notes/blob/main/grid-mvp/grid-tenant-user.html) |
 
