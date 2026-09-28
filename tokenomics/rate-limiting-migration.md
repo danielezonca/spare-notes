@@ -10,12 +10,16 @@ metering-service stack.
 - **Cost-aware enforcement** — `token_rate_limit` counts tokens, not
   dollars. Quotas are cost-driven (token cost varies by model and
   type), so enforcement must account for per-model pricing
-- **CloudEvent usage pipeline** — per-request usage events (tokens,
+- **CloudEvents and usage API** — per-request usage events (tokens,
   cost, identity, model) must be emitted in real time for billing,
   chargeback, and admin visibility. `token_rate_limit` enforces but
-  does not record
-- **CRD-driven config** — no controller generates `token_rate_limit`
-  rules from CRDs today. Config is manual
+  does not record. Downstream systems need usage APIs to scrape
+  consumption data
+- **Management API** — no way to configure `token_rate_limit` quotas
+  at runtime today. Admins need to update budgets in real time
+  (e.g., grant more capacity to a team). Options: CRD-driven config
+  generation (controller watches CRDs, generates praxis.yaml) or a
+  quota REST API. Neither exists
 
 Until these gaps close, `token_rate_limit` is **additive** (new
 burst/daily limits) alongside `external_metering` (existing dollar
