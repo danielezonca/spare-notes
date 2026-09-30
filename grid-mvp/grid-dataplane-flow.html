@@ -1,0 +1,1472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Grid — Data Plane Flow Visualizer</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0d1117;color:#c9d1d9;overflow:hidden;transition:background .3s,color .3s}
+body.light{background:#fff;color:#24292f}
+
+.right-panel{position:fixed;top:0;right:0;width:380px;height:100vh;z-index:100;display:flex;flex-direction:column;background:#161b22;border-left:1px solid #30363d;overflow:hidden;transition:background .3s,border-color .3s}
+body.light .right-panel{background:#f6f8fa;border-color:#d0d7de}
+
+.flow-bar{padding:12px 16px;border-bottom:1px solid #30363d;flex-shrink:0;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+body.light .flow-bar{border-color:#d0d7de}
+.flow-bar select{flex:1;padding:7px 10px;border:1px solid #30363d;border-radius:6px;background:#0d1117;color:#c9d1d9;font-size:13px;font-family:inherit;cursor:pointer}
+body.light .flow-bar select{background:#fff;color:#24292f;border-color:#d0d7de}
+.flow-bar button{padding:7px 14px;border:1px solid #30363d;border-radius:6px;background:#161b22;color:#c9d1d9;cursor:pointer;font-size:13px;font-family:inherit;transition:all .15s}
+body.light .flow-bar button{background:#f6f8fa;color:#24292f;border-color:#d0d7de}
+.flow-bar button:hover{border-color:#58a6ff}
+.flow-bar .start{border-color:#3fb950;color:#3fb950;min-width:90px}
+.flow-bar .rst{border-color:#f0883e;color:#f0883e}
+
+.steps-section{padding:10px 16px;border-bottom:1px solid #30363d;flex:2;overflow-y:auto}
+body.light .steps-section{border-color:#d0d7de}
+.steps-title{font-weight:700;margin-bottom:6px;font-size:14px}
+.step{margin:2px 0;color:#484f58;display:flex;align-items:flex-start;gap:6px;font-size:12px;line-height:1.4;cursor:pointer;padding:3px 4px;border-radius:4px;transition:all .2s}
+body.light .step{color:#b0b8c1}
+.step:hover{background:#58a6ff22;cursor:pointer;color:#58a6ff;transform:translateX(4px);border-left:2px solid #58a6ff;padding-left:6px}
+body.light .step:hover{background:#ddf4ff88;color:#0969da;border-left:2px solid #0969da;padding-left:6px}
+.step-mk{flex-shrink:0;width:16px;text-align:center;font-size:13px}
+.step.pending{color:#484f58}
+body.light .step.pending{color:#b0b8c1}
+.step.pending .step-mk::before{content:'\25CB'}
+.step.active{color:#58a6ff}
+.step.active .step-mk::before{content:'\25CF'}
+.step.done{color:#3fb950}
+.step.done .step-mk::before{content:'\2713'}
+.step .step-mk::before{content:'\25CB'}
+
+.insp-section{flex:3;overflow-y:auto;padding:10px 16px;font-family:'SF Mono',Menlo,Consolas,monospace;font-size:11px}
+.insp-title{font-weight:700;font-size:14px;margin-bottom:6px;font-family:-apple-system,sans-serif;flex-shrink:0;padding:0 0 6px;border-bottom:1px solid #30363d}
+body.light .insp-title{border-color:#d0d7de}
+.insp-sec{margin:6px 0 2px;font-weight:600;color:#58a6ff;font-size:12px;font-family:-apple-system,sans-serif}
+.insp-line{margin:1px 0;padding:2px 6px;border-radius:3px;white-space:pre-wrap;word-break:break-word;line-height:1.6;transition:all .4s}
+.insp-line.add{background:#1a2e1a;color:#3fb950;border-left:3px solid #3fb950}
+body.light .insp-line.add{background:#dafbe1;color:#116329}
+.insp-line.del{background:#2d1517;color:#f85149;text-decoration:line-through;opacity:.7;border-left:3px solid #f85149}
+body.light .insp-line.del{background:#ffebe9;color:#82071e}
+.insp-line.keep{color:#8b949e;border-left:3px solid transparent}
+.insp-line.err{background:#2d1517;color:#f85149;border-left:3px solid #f85149;font-weight:600}
+body.light .insp-line.err{background:#ffebe9;color:#82071e}
+.insp-line.highlight{background:#1a2332;color:#58a6ff;border-left:3px solid #58a6ff;animation:pulse .8s}
+body.light .insp-line.highlight{background:#ddf4ff;color:#0969da}
+@keyframes pulse{0%{opacity:.3}50%{opacity:1}100%{opacity:1}}
+.insp-plugin{margin:8px 0 4px;padding:4px 8px;background:#d2992222;border-radius:4px;color:#d29922;font-weight:600;font-size:12px;font-family:-apple-system,sans-serif}
+body.light .insp-plugin{background:#d2992215;color:#9a6700}
+
+.theme-toggle{position:fixed;top:16px;right:396px;z-index:200;width:36px;height:36px;border-radius:8px;border:1px solid #30363d;background:#161b22;color:#c9d1d9;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;transition:all .15s}
+body.light .theme-toggle{background:#f6f8fa;color:#24292f;border-color:#d0d7de}
+
+.viz-title{position:fixed;top:14px;left:0;right:380px;z-index:200;text-align:center;font-size:22px;font-weight:700;background:linear-gradient(135deg,#d29922,#58a6ff,#8957e5);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:-0.5px;pointer-events:none}
+
+.legend{position:fixed;bottom:16px;left:16px;z-index:100;padding:10px 14px;background:#161b22;border:1px solid #30363d;border-radius:10px;font-size:13px;transition:all .3s}
+body.light .legend{background:#f6f8fa;border-color:#d0d7de}
+.legend-title{font-weight:600;margin-bottom:5px;font-size:14px}
+.legend-item{display:flex;align-items:center;gap:8px;margin:4px 0;font-size:13px}
+.legend-dot{width:11px;height:11px;border-radius:50%}
+
+.steps-section::-webkit-scrollbar,.insp-section::-webkit-scrollbar{width:6px}
+.steps-section::-webkit-scrollbar-track,.insp-section::-webkit-scrollbar-track{background:transparent}
+.steps-section::-webkit-scrollbar-thumb,.insp-section::-webkit-scrollbar-thumb{background:#30363d;border-radius:3px}
+body.light .steps-section::-webkit-scrollbar-thumb,body.light .insp-section::-webkit-scrollbar-thumb{background:#d0d7de}
+
+.mobile-splash{display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;background:#0d1117;color:#c9d1d9;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;overflow:hidden}
+.mobile-splash.show{display:flex}
+.mobile-splash canvas{position:absolute;top:0;left:0;width:100%;height:100%;z-index:0}
+.mobile-splash-content{position:relative;z-index:1}
+.mobile-splash h1{font-size:28px;font-weight:800;margin-bottom:8px;letter-spacing:-0.5px}
+.mobile-splash h1 .grad{background:linear-gradient(135deg,#d29922,#58a6ff,#8957e5);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.mobile-splash .sub{font-size:15px;color:#8b949e;margin-bottom:32px;line-height:1.6}
+.mobile-splash .badge{display:inline-block;padding:6px 16px;border:1px solid #30363d;border-radius:20px;font-size:12px;color:#8b949e;margin-bottom:24px}
+.mobile-splash .badge span{color:#d29922;font-weight:600}
+.mobile-splash .laptop-msg{margin-top:32px;padding:20px 24px;background:linear-gradient(135deg,#d2992218,#58a6ff18);border:2px solid #d2992266;border-radius:14px;font-size:15px;color:#e2e8f0;line-height:1.6;animation:pulse-border 2s ease-in-out infinite}
+.mobile-splash .laptop-msg strong{color:#fff}
+.mobile-splash .laptop-icon{font-size:32px;margin-bottom:8px}
+@keyframes pulse-border{0%,100%{border-color:#d2992266;box-shadow:0 0 20px #d2992222}50%{border-color:#d29922cc;box-shadow:0 0 30px #d2992244}}
+.mobile-splash .stats{display:flex;gap:12px;justify-content:center;margin:24px 0;flex-wrap:wrap}
+.mobile-splash .stat{padding:8px 14px;background:#161b22;border:1px solid #21262d;border-radius:8px;font-size:12px;font-weight:600}
+.mobile-splash .stat.blue{color:#58a6ff;border-color:#58a6ff44}
+.mobile-splash .stat.green{color:#3fb950;border-color:#3fb95044}
+.mobile-splash .stat.amber{color:#d29922;border-color:#d2992244}
+.mobile-splash .stat.purple{color:#8957e5;border-color:#8957e544}
+@media(min-width:800px){.mobile-splash{display:none!important}}
+</style>
+</head>
+<body>
+
+<div class="mobile-splash show" id="mobile-splash">
+  <canvas id="mobile-canvas"></canvas>
+  <div class="mobile-splash-content">
+    <div class="badge"><span>AI Grid</span> Multi-cluster</div>
+    <h1>AI Grid<br><span class="grad">Data Plane</span></h1>
+    <p class="sub">Interactive animated request flow<br>across the multi-cluster AI Grid</p>
+    <div class="stats">
+      <div class="stat amber">4 Flows</div>
+      <div class="stat blue">2 Clusters</div>
+      <div class="stat green">62 Steps</div>
+      <div class="stat purple">20+ Components</div>
+    </div>
+    <div class="laptop-msg">
+      <div class="laptop-icon">&#128187;</div>
+      <strong>Open this page on your laptop or desktop</strong><br>to experience the full interactive visualizer with animated step-by-step flows, clickable components, and request/response inspector.
+    </div>
+  </div>
+</div>
+
+<button class="theme-toggle" id="thm" onclick="toggleTheme()">&#9790;</button>
+<div class="viz-title">AI Grid &mdash; Data Plane Flow Visualizer <span id="flow-label" style="font-weight:700;-webkit-text-fill-color:#d29922"></span></div>
+
+<div class="right-panel">
+  <div class="flow-bar">
+    <select id="flow-select">
+      <option value="local">Local Routing (on-cluster)</option>
+      <option value="cross">Cross-site Routing (remote)</option>
+      <option value="ext">External Model (via MaaS)</option>
+      <option value="auth">Auth Failure (401)</option>
+    </select>
+    <button class="start" onclick="run()">&#9654; Start</button>
+    <button onclick="stepOnce()" title="Step forward" style="border-color:#58a6ff;color:#58a6ff;min-width:36px">&#9646;&#9654;</button>
+    <button id="speed-btn" onclick="cycleSpeed()" style="min-width:36px">1x</button>
+    <button id="loop-btn" onclick="toggleLoop()" style="border-color:#79c0ff;color:#79c0ff">&#8635; Loop</button>
+    <button class="rst" onclick="doReset()">Reset</button>
+  </div>
+  <div class="steps-section" id="steps-section">
+    <div class="steps-title">Flow Steps <span style="font-weight:400;font-size:11px;color:#8b949e">· click to jump</span></div>
+    <div id="steps-ctr"></div>
+  </div>
+  <div class="insp-section" id="insp-section">
+    <div class="insp-title" id="insp-title" style="color:#58a6ff">Request</div>
+    <div id="insp-content"></div>
+  </div>
+</div>
+
+<div id="highlight-box" style="display:none;position:fixed;z-index:350;border-radius:10px;pointer-events:none"></div>
+<div id="overlay" onclick="if(event.target===this)closeOverlay()" style="display:none;position:fixed;top:0;left:0;right:380px;bottom:0;z-index:300;background:rgba(0,0,0,0.6)">
+  <div id="overlay-card" style="position:absolute;background:#161b22ee;border:1px solid #30363d;border-radius:14px;max-width:420px;padding:22px 26px;box-shadow:0 12px 40px rgba(0,0,0,0.5);transition:opacity .2s">
+    <button onclick="closeOverlay()" style="position:absolute;top:10px;right:14px;background:none;border:none;color:#8b949e;font-size:18px;cursor:pointer;padding:4px 8px;border-radius:6px;transition:all .15s" onmouseover="this.style.color='#c9d1d9';this.style.background='#30363d'" onmouseout="this.style.color='#8b949e';this.style.background='none'">&#10005;</button>
+    <div id="overlay-accent" style="width:4px;height:24px;border-radius:2px;position:absolute;left:0;top:22px"></div>
+    <h2 id="overlay-title" style="margin:0 0 6px;font-size:18px;color:#c9d1d9;font-family:system-ui"></h2>
+    <p id="overlay-desc" style="margin:0 0 14px;font-size:13px;color:#8b949e;line-height:1.5;font-family:system-ui"></p>
+    <div id="overlay-details" style="font-size:12px;font-family:'SF Mono',Menlo,monospace"></div>
+    <button onclick="closeOverlay()" style="margin-top:14px;padding:7px 20px;border:1px solid #3fb950;border-radius:8px;background:transparent;color:#3fb950;font-size:13px;cursor:pointer;font-family:system-ui;transition:all .15s" onmouseover="this.style.background='#3fb95022'" onmouseout="this.style.background='transparent'">&#9654; Resume Flow</button>
+  </div>
+</div>
+
+<div class="legend">
+  <div class="legend-title">Legend</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#58a6ff"></div>Request</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#3fb950"></div>Response</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#d29922"></div>Grid Gateway</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#f0883e"></div>Auth / Rate Limit</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#8957e5"></div>MaaS / Operator</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#39d2c0"></div>Inference</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#f85149"></div>External / Error</div>
+  <div style="margin-top:10px;padding-top:8px;border-top:1px solid #30363d;font-size:11px;color:#484f58">Built with <a href="https://noyitz.github.io/flowstory/" target="_blank" style="color:#484f58;text-decoration:none" onmouseover="this.style.color='#58a6ff'" onmouseout="this.style.color='#484f58'">FlowStory</a></div>
+</div>
+
+<canvas id="canvas"></canvas>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+let W, H, isDark = true, animFrame = null, dots = [], activeNodes = new Set(), currentStepDone = 0;
+let badges = {}, lines = [], running = false, glowing = new Set(), fading = {};
+let paused = false, runStepIndex = 0, stepTimer = null, playbackSpeed = 1, loopMode = false;
+let inspHeaders = [], inspBody = [], inspCycle = [], inspStepLabel = '';
+let snapshots = [];
+
+const LW = 1400, LH = 1100;
+let ox = 0, oy = 0, sc = 1;
+
+function toggleTheme() {
+  isDark = !isDark;
+  document.body.classList.toggle('light', !isDark);
+  document.getElementById('thm').innerHTML = isDark ? '&#9790;' : '&#9788;';
+  draw();
+}
+
+// ================================================================
+// NODES
+// ================================================================
+const N = {
+  user: { x: -30, y: 80, w: 110, h: 50, label: 'Client / Agent', type: 'icon' },
+  dns: { x: 200, y: 55, w: 260, h: 36, label: 'ai-gateway.example.com', sublabel: 'DNS', color: '#58a6ff', fs: 12 },
+
+  // Cluster A
+  clusterA: { x: 80, y: 100, w: 570, h: 850, type: 'boundary', label: 'CLUSTER A · us-east-1 · hub (DNS)', labelAlign: 'left' },
+
+  gridgwA: { x: 120, y: 140, w: 260, h: 60, label: 'Grid Gateway', sublabel: 'Praxis AI', color: '#d29922', fs: 16 },
+
+  // Grid GW filter chain (Cluster A)
+  filterContainer: { x: 110, y: 215, w: 280, h: 230, type: 'container', label: 'Grid Gateway Filter Chain', color: '#d29922' },
+  f_auth:   { x: 130, y: 255, w: 240, h: 36, label: 'api_key_auth', sublabel: '→ maas-api validate', color: '#f0883e', type: 'plugin', inner: true, fs: 13 },
+  f_model:  { x: 130, y: 297, w: 240, h: 36, label: 'model_to_header', sublabel: 'body → X-Gateway-Model-Name', color: '#58a6ff', type: 'plugin', inner: true, fs: 13 },
+  f_route:  { x: 130, y: 339, w: 240, h: 36, label: 'intelligent_route', sublabel: 'overlay · geo · load scoring', color: '#d29922', type: 'plugin', inner: true, fs: 13 },
+  f_lb:     { x: 130, y: 381, w: 240, h: 36, label: 'load_balancer', sublabel: '→ selected site MaaS GW', color: '#d29922', type: 'plugin', inner: true, fs: 13 },
+
+  gridopA: { x: 420, y: 160, w: 200, h: 50, label: 'Grid Operator', sublabel: 'SWIM · Signals · Overlay', color: '#8957e5', fs: 14 },
+
+  maasapiA: { x: 420, y: 240, w: 200, h: 50, label: 'maas-api', sublabel: 'Key validate · Models', color: '#8957e5', fs: 14 },
+
+  maasgwA: { x: 120, y: 470, w: 510, h: 60, label: 'MaaS Gateway · Praxis AI', sublabel: 'Auth · Rate limit · API translation · Cred injection', color: '#8957e5', fs: 14 },
+
+  kuadrantA: { x: 120, y: 550, w: 240, h: 45, label: 'Kuadrant', sublabel: 'Limitador · Authorino', color: '#f0883e', fs: 13 },
+
+  eppA: { x: 120, y: 620, w: 510, h: 50, label: 'llm-d (EPP → vLLM) · Qwen3-Coder-30B', sublabel: 'LLMInferenceService · local backend', color: '#39d2c0', fs: 14 },
+
+  extA: { x: 120, y: 695, w: 510, h: 50, label: 'ExternalModel CRs', sublabel: 'api.anthropic.com · api.openai.com', color: '#f85149', fs: 14 },
+
+  // Cluster B
+  clusterB: { x: 720, y: 100, w: 520, h: 850, type: 'boundary', label: 'CLUSTER B · eu-west-1', labelAlign: 'left' },
+
+  gridgwB: { x: 760, y: 140, w: 240, h: 55, label: 'Grid Gateway', sublabel: 'Praxis AI', color: '#d29922', fs: 14 },
+  gridopB: { x: 1020, y: 140, w: 190, h: 55, label: 'Grid Operator', sublabel: 'SWIM · Signals', color: '#8957e5', fs: 13 },
+
+  maasapiB: { x: 1020, y: 220, w: 190, h: 45, label: 'maas-api', sublabel: 'Key validate', color: '#8957e5', fs: 13 },
+
+  maasgwB: { x: 760, y: 310, w: 450, h: 55, label: 'MaaS Gateway · Praxis AI', sublabel: 'Auth · Rate limit · API translation · Cred injection', color: '#8957e5', fs: 13 },
+
+  kuadrantB: { x: 760, y: 390, w: 210, h: 40, label: 'Kuadrant', sublabel: 'Limitador · Authorino', color: '#f0883e', fs: 12 },
+
+  eppB: { x: 760, y: 455, w: 450, h: 50, label: 'llm-d (EPP → vLLM) · Llama-4-Scout', sublabel: 'LLMInferenceService · local backend', color: '#39d2c0', fs: 13 },
+
+  extB: { x: 760, y: 530, w: 450, h: 45, label: 'ExternalModel CRs', sublabel: 'api.anthropic.com', color: '#f85149', fs: 13 },
+
+  // Shared
+  shareddb: { x: 350, y: 980, w: 560, h: 55, label: 'Shared PostgreSQL', sublabel: 'API keys · Subscriptions · User quotas', color: '#39d2c0', fs: 16 },
+};
+
+// ================================================================
+// TOOLTIPS
+// ================================================================
+const tips = {
+  gridgwA: { t: 'Grid Gateway (Praxis AI)', d: 'Consumer entry point for the multi-cluster Grid. Runs a filter chain: api_key_auth, model_to_header, intelligent_route, load_balancer. Routes requests locally or cross-site via mTLS.', dt: [['Ports', ':8080 gateway, :9901 admin'], ['Filters', 'api_key_auth → model_to_header → intelligent_route → load_balancer'], ['Cross-site', 'mTLS to peer Grid Gateways'], ['Config', 'Overlay ConfigMap from Grid Operator']], links: [['Praxis AI', 'https://github.com/praxis-ai/praxis']] },
+  gridgwB: { t: 'Grid Gateway (Praxis AI)', d: 'Same binary as Cluster A. Receives cross-site requests from peer Grid Gateways via mTLS, or direct consumer requests if DNS resolves here.', dt: [['Ports', ':8080 gateway, :9901 admin'], ['Role', 'Entry point or cross-site receiver']] },
+  gridopA: { t: 'Grid Operator', d: 'Manages cross-cluster state via SWIM gossip protocol and signals polling. Generates the routing overlay ConfigMap consumed by the Grid Gateway.', dt: [['SWIM', 'UDP gossip, AES-GCM encrypted, bincode'], ['Signals', 'GET /v1/site/signals (mTLS, Prometheus format)'], ['Output', 'Overlay ConfigMap with routing candidates'], ['CRDT', 'GridStateSnapshot — models, metrics, tenant spend']], links: [['Signals Contract', 'https://github.com/danielezonca/spare-notes/blob/main/grid-mvp/Ai-Grid-Signals-Contract.md']] },
+  gridopB: { t: 'Grid Operator', d: 'Same as Cluster A. Gossips membership, liveness, model capabilities, and load metrics to all peers.', dt: [['SWIM', 'Peer-to-peer gossip'], ['Overlay', 'Local file/ConfigMap']] },
+  f_auth: { t: 'api_key_auth Filter', d: 'Validates the consumer API key by calling maas-api /internal/v1/api-keys/validate. Returns identity, region, and token budget. Sets AuthenticatedIdentity for downstream filters.', dt: [['Endpoint', 'POST /internal/v1/api-keys/validate → maas-api'], ['Returns', 'username, groups, region, tokenBudget'], ['Sets', 'AuthenticatedIdentity (subject_id, roles, custom_claims)'], ['Header', 'X-Grid-Region (from tenant config)'], ['Error', '401 Unauthorized if key invalid']] },
+  f_model: { t: 'model_to_header Filter', d: 'Extracts the "model" field from the JSON request body and sets it as the X-Gateway-Model-Name HTTP header for model-based routing decisions.', dt: [['Input', 'Request body "model" field'], ['Output', 'X-Gateway-Model-Name header'], ['Used by', 'intelligent_route for overlay lookup']] },
+  f_route: { t: 'intelligent_route Filter', d: 'Reads the overlay ConfigMap and scores routing candidates. Matches X-Grid-Region against candidate labels for geo-aware routing. Uses locality, cost, queue depth, and KV cache signals.', dt: [['Input', 'X-Gateway-Model-Name, X-Grid-Region, overlay'], ['Scoring', 'locality (1.0 local, 0.4-0.7 remote, 0.1 API)'], ['Signals', 'cost, kv_cache, latency, locality, prefix_cache, queue_depth'], ['Output', 'Selected site + backend']], links: [['Scoring Strategies', 'https://github.com/danielezonca/spare-notes/blob/main/grid-mvp/design-notes.md']] },
+  f_lb: { t: 'load_balancer Filter', d: 'Forwards the request to the selected site\'s MaaS Gateway. For local routing, forwards within the cluster. For cross-site, routes via mTLS to the remote Grid Gateway.', dt: [['Local', 'Forward to local MaaS Gateway'], ['Cross-site', 'mTLS to remote Grid Gateway → MaaS Gateway'], ['Protocol', 'HTTP/1.1, HTTP/2']] },
+  maasgwA: { t: 'MaaS Gateway (Praxis AI)', d: 'Site-local model routing and enforcement. Runs Kuadrant (Authorino + Limitador) for auth and rate limiting, Praxis plugins for API translation and credential injection.', dt: [['Auth', 'Authorino (MaaSAuthPolicy enforcement)'], ['Rate Limit', 'Limitador (TokenRateLimitPolicy)'], ['Plugins', 'model-provider-resolver, api-translation, apikey-injection'], ['Routing', 'llm-d (EPP → vLLM) or ExternalModel → external API']], links: [['Detailed MaaS Flow', 'https://noyitz.github.io/ai-gateway-docs/ai-gateway-flow.html']] },
+  maasgwB: { t: 'MaaS Gateway (Praxis AI)', d: 'Same as Cluster A. Receives requests from the local Grid Gateway after cross-site routing. Uses Praxis plugins for API translation and credential injection.', dt: [['Role', 'Site-local enforcement + routing']], links: [['Detailed MaaS Flow', 'https://noyitz.github.io/ai-gateway-docs/ai-gateway-flow.html']] },
+  maasapiA: { t: 'maas-api', d: 'HTTP API for key management, model listing, and subscriptions. Called by api_key_auth for key validation (hot path) and by Authorino for subscription-level auth.', dt: [['Validate', 'POST /internal/v1/api-keys/validate'], ['Models', 'GET /v1/models (local + Grid overlay)'], ['Keys', 'POST /v1/api-keys, DELETE /v1/api-keys/:id'], ['DB', 'Shared PostgreSQL']], links: [['MaaS Repo', 'https://github.com/opendatahub-io/models-as-a-service']] },
+  maasapiB: { t: 'maas-api', d: 'Same as Cluster A. Connected to the same shared PostgreSQL — API keys work on any cluster.', dt: [['DB', 'Shared PostgreSQL (same as Cluster A)'], ['Keys', 'Same key validates on any site']] },
+  kuadrantA: { t: 'Kuadrant (Limitador + Authorino)', d: 'Rate limiting and auth policy enforcement at the MaaS level. Limitador counts tokens per-user/per-model. Authorino validates subscription-level access.', dt: [['Rate Limit', 'Token-based via TokenRateLimitPolicy'], ['Auth', 'Subscription-level via MaaSAuthPolicy'], ['Config', 'CRD-driven (maas-controller reconciles)']], links: [['Kuadrant Docs', 'https://docs.kuadrant.io']] },
+  kuadrantB: { t: 'Kuadrant (Limitador + Authorino)', d: 'Same as Cluster A.', dt: [['Role', 'Site-local rate limiting and auth']] },
+  eppA: { t: 'llm-d (EPP → vLLM)', d: 'llm-d inference stack. The Endpoint Picker Proxy (EPP) selects the optimal pod for on-cluster inference. vLLM serves the model with P/D disaggregated serving support.', dt: [['Project', 'llm-d (open-source inference platform)'], ['Model', 'Qwen3-Coder-30B'], ['EPP', 'Pod selection (queue depth, KV cache, affinity)'], ['Engine', 'vLLM'], ['CRD', 'LLMInferenceService']], links: [['llm-d', 'https://github.com/llm-d'], ['vLLM', 'https://docs.vllm.ai/']] },
+  eppB: { t: 'llm-d (EPP → vLLM)', d: 'Same llm-d inference stack as Cluster A, serving a different model.', dt: [['Project', 'llm-d'], ['Model', 'Llama-4-Scout'], ['Engine', 'vLLM']] },
+  extA: { t: 'External Models (MaaS level)', d: 'External LLM providers configured via ExternalModel CRDs. MaaS Gateway handles API translation and credential injection. Rate limited by Limitador.', dt: [['Providers', 'Anthropic, OpenAI, Azure, Bedrock, Vertex'], ['CRD', 'ExternalModel (inference.opendatahub.io)'], ['Credential', 'Injected from K8s Secret'], ['Rate Limit', 'Via Kuadrant/Limitador']] },
+  extB: { t: 'External Models (MaaS level)', d: 'Same as Cluster A. External models configured per-site via ExternalModel CRDs.', dt: [['Providers', 'Anthropic']] },
+  shareddb: { t: 'Shared PostgreSQL', d: 'Single database shared across all clusters. Stores API keys (hashed), subscriptions, user quotas, and model listings. Keys created on any cluster work everywhere.', dt: [['Data', 'API keys, subscriptions, quotas'], ['Access', 'All maas-api instances connect'], ['Keys', 'Hash stored, plaintext never persisted'], ['Evolution', 'Hub + reconciler for cross-region (Phase 2)']] },
+  dns: { t: 'DNS', d: 'Stable endpoint that consumers configure once. Resolves to the hub cluster by default. Any cluster can be promoted to hub by updating DNS.', dt: [['Endpoint', 'ai-gateway.example.com'], ['Resolution', 'Hub cluster (DNS designation)'], ['Failover', 'Any cluster can be promoted']] },
+};
+
+let overlayWasRunning = false, highlightKey = null;
+function showOverlay(key) {
+  const tip = tips[key], n = N[key];
+  if (!tip) return;
+  overlayWasRunning = running;
+  highlightKey = key;
+  if (running && !paused) { paused = true; running = false; if (stepTimer) clearTimeout(stepTimer); updatePlayBtn(); }
+  const ov = document.getElementById('overlay');
+  const card = document.getElementById('overlay-card');
+  document.getElementById('overlay-accent').style.background = n.color || '#58a6ff';
+  document.getElementById('overlay-title').textContent = tip.t;
+  document.getElementById('overlay-title').style.color = n.color || '#c9d1d9';
+  document.getElementById('overlay-desc').textContent = tip.d;
+  let dh = '';
+  if (tip.dt) tip.dt.forEach(([l,v]) => { dh += `<div style="display:flex;gap:12px;padding:5px 0;border-bottom:1px solid #21262d"><span style="color:#8b949e;min-width:110px;flex-shrink:0">${esc(l)}</span><span style="color:#c9d1d9">${esc(v)}</span></div>`; });
+  if (tip.links) { dh += '<div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">'; tip.links.forEach(([l,u]) => { dh += `<a href="${u}" target="_blank" rel="noopener" style="color:#58a6ff;font-size:12px;text-decoration:none;padding:4px 10px;border:1px solid #30363d;border-radius:6px;font-family:system-ui;transition:all .15s" onmouseover="this.style.borderColor='#58a6ff'" onmouseout="this.style.borderColor='#30363d'">${esc(l)} ↗</a>`; }); dh += '</div>'; }
+  document.getElementById('overlay-details').innerHTML = dh;
+  const nx = tx(n.x), ny = ty(n.y), nw = ts(n.w), nh = ts(n.h);
+  const canvasRight = innerWidth - 380;
+  let cx, cy;
+  if (nx + nw + 440 < canvasRight) { cx = nx + nw + 20; } else if (nx - 440 > 0) { cx = nx - 440; } else { cx = Math.max(10, (canvasRight - 420) / 2); }
+  cy = Math.max(10, Math.min(ny - 40, innerHeight - 500));
+  card.style.left = cx + 'px';
+  card.style.top = cy + 'px';
+  ov.style.display = 'block';
+  const hb = document.getElementById('highlight-box');
+  hb.style.left = nx + 'px'; hb.style.top = ny + 'px'; hb.style.width = nw + 'px'; hb.style.height = nh + 'px';
+  hb.style.border = `3px solid ${n.color || '#58a6ff'}`;
+  hb.style.boxShadow = `0 0 30px ${n.color || '#58a6ff'}88, inset 0 0 20px ${n.color || '#58a6ff'}22`;
+  hb.style.background = isDark ? '#161b22' : '#f6f8fa';
+  hb.style.display = 'flex'; hb.style.flexDirection = 'column'; hb.style.alignItems = 'center'; hb.style.justifyContent = 'center';
+  hb.style.fontFamily = 'system-ui'; hb.style.color = isDark ? '#c9d1d9' : '#24292f';
+  hb.innerHTML = `<div style="font-weight:700;font-size:${nw > 150 ? 16 : 13}px">${esc(n.label)}</div>${n.sublabel ? `<div style="font-size:${nw > 150 ? 12 : 10}px;color:#8b949e">${esc(n.sublabel)}</div>` : ''}`;
+  hb.style.transform = 'none';
+  draw();
+}
+function closeOverlay() {
+  document.getElementById('overlay').style.display = 'none';
+  document.getElementById('highlight-box').style.display = 'none';
+  highlightKey = null;
+  draw();
+  if (overlayWasRunning) { paused = false; running = true; updatePlayBtn(); if (!animFrame) animate(); stepTimer = setTimeout(execStep, 300 / playbackSpeed); }
+}
+
+function C() {
+  return isDark
+    ? { bg:'#0d1117', box:'#161b22', boxA:'#1a2332', bdr:'#30363d', txt:'#c9d1d9', dim:'#8b949e', brt:'#fff' }
+    : { bg:'#fff', box:'#f6f8fa', boxA:'#ddf4ff', bdr:'#d0d7de', txt:'#24292f', dim:'#656d76', brt:'#000' };
+}
+
+// ================================================================
+// DRAWING
+// ================================================================
+function resize() {
+  const panelW = 380;
+  W = canvas.width = innerWidth - panelW;
+  H = canvas.height = innerHeight;
+  sc = Math.min(W / LW, H / LH) * 0.98;
+  ox = (W - LW * sc) / 2;
+  oy = (H - LH * sc) * 0.04;
+  draw();
+}
+addEventListener('resize', resize);
+
+function tx(x) { return ox + x * sc; }
+function ty(y) { return oy + y * sc; }
+function ts(s) { return s * sc; }
+
+function drawBox(key) {
+  const n = N[key], c = C();
+  if (!n || n.type === 'boundary' || n.type === 'container') return;
+  const x = tx(n.x), y = ty(n.y), w = ts(n.w), h = ts(n.h);
+  const isA = activeNodes.has(key), hasBadge = badges[key] != null;
+  ctx.save();
+  if (n.type === 'icon') {
+    ctx.font = `${ts(32)}px serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText('\u{1F464}', x + w / 2, y + ts(26));
+    ctx.font = `bold ${ts(16)}px system-ui`;
+    ctx.fillStyle = c.txt;
+    ctx.fillText(n.label, x + w / 2, y + ts(46));
+    ctx.restore();
+    return;
+  }
+  let fadeA = 1;
+  if (fading[key]) { const el = Date.now() - fading[key]; fadeA = Math.min(el / 500, 1); if (el > 500) delete fading[key]; }
+  if (isA || hasBadge) { ctx.shadowColor = n.color; ctx.shadowBlur = ts(18) * fadeA; ctx.globalAlpha = 0.3 + 0.7 * fadeA; }
+  ctx.beginPath();
+  ctx.roundRect(x, y, w, h, ts(8));
+  ctx.fillStyle = (isA || hasBadge) ? c.boxA : c.box;
+  ctx.fill();
+  ctx.strokeStyle = (isA || hasBadge) ? n.color : c.bdr;
+  ctx.lineWidth = ts((isA || hasBadge) ? 2.5 : 1.5);
+  if (n.type === 'plugin') { ctx.setLineDash([ts(5), ts(4)]); }
+  ctx.stroke();
+  ctx.setLineDash([]);
+  const fs = n.fs || 16;
+  ctx.fillStyle = c.txt;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  if (n.sublabel) {
+    ctx.font = `bold ${ts(fs)}px system-ui`;
+    ctx.fillText(n.label, x + w / 2, y + h / 2 - ts(8));
+    ctx.font = `${ts(Math.max(fs - 3, 10))}px system-ui`;
+    ctx.fillStyle = c.dim;
+    ctx.fillText(n.sublabel, x + w / 2, y + h / 2 + ts(8));
+  } else {
+    ctx.font = `bold ${ts(fs)}px system-ui`;
+    ctx.fillText(n.label, x + w / 2, y + h / 2);
+  }
+  if (hasBadge) {
+    const bList = Array.isArray(badges[key]) ? badges[key] : [badges[key]];
+    bList.forEach((bNum, idx) => {
+      const bx = x + ts(8) + idx * ts(22), by = y + ts(5), br = ts(9);
+      ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+      ctx.beginPath(); ctx.arc(bx + br, by + br, br, 0, Math.PI * 2);
+      ctx.fillStyle = n.color; ctx.fill();
+      ctx.font = `bold ${ts(10)}px system-ui`;
+      ctx.fillStyle = isDark ? '#0d1117' : '#fff';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(String(bNum), bx + br, by + br);
+    });
+  }
+  ctx.restore();
+}
+
+function drawContainer(key, isGlow) {
+  const n = N[key], c = C();
+  if (!n || n.type !== 'container') return;
+  ctx.save();
+  if (isGlow) { ctx.shadowColor = n.color; ctx.shadowBlur = ts(22); }
+  ctx.beginPath();
+  ctx.roundRect(tx(n.x), ty(n.y), ts(n.w), ts(n.h), ts(10));
+  const a = isGlow ? 'cc' : '55';
+  ctx.strokeStyle = n.color + a;
+  ctx.lineWidth = ts(isGlow ? 3 : 2.5);
+  ctx.setLineDash([ts(7), ts(5)]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.font = `bold ${ts(11)}px system-ui`;
+  ctx.fillStyle = n.color + (isDark ? 'aa' : '99');
+  ctx.textAlign = 'left';
+  ctx.fillText(n.label, tx(n.x + 12), ty(n.y + 18));
+  ctx.restore();
+}
+
+function drawBounds() {
+  const c = C();
+  // Cluster A boundary
+  const ca = N.clusterA;
+  ctx.beginPath();
+  ctx.roundRect(tx(ca.x), ty(ca.y), ts(ca.w), ts(ca.h), ts(14));
+  ctx.strokeStyle = c.bdr;
+  ctx.lineWidth = ts(2.5);
+  ctx.setLineDash([ts(10), ts(8)]);
+  ctx.stroke(); ctx.setLineDash([]);
+  ctx.font = `${ts(11)}px system-ui`;
+  ctx.fillStyle = isDark ? 'rgba(63,185,80,0.6)' : 'rgba(26,127,55,0.6)';
+  ctx.textAlign = 'left';
+  ctx.fillText(ca.label, tx(ca.x + 12), ty(ca.y + 18));
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#3fb95088';
+  ctx.fillText('hub (DNS)', tx(ca.x + ca.w - 12), ty(ca.y + 18));
+
+  // Cluster B boundary
+  const cb = N.clusterB;
+  ctx.beginPath();
+  ctx.roundRect(tx(cb.x), ty(cb.y), ts(cb.w), ts(cb.h), ts(14));
+  ctx.strokeStyle = c.bdr;
+  ctx.lineWidth = ts(2.5);
+  ctx.setLineDash([ts(10), ts(8)]);
+  ctx.stroke(); ctx.setLineDash([]);
+  ctx.font = `${ts(11)}px system-ui`;
+  ctx.fillStyle = isDark ? 'rgba(139,148,158,0.6)' : 'rgba(101,109,118,0.6)';
+  ctx.textAlign = 'left';
+  ctx.fillText(cb.label, tx(cb.x + 12), ty(cb.y + 18));
+
+  // Filter chain container
+  drawContainer('filterContainer', glowing.has('filterContainer'));
+
+  // SWIM gossip arc between operators
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(tx(N.gridopA.x + N.gridopA.w), ty(N.gridopA.y + N.gridopA.h / 2));
+  const cpx = tx(700), cpy = ty(100);
+  ctx.quadraticCurveTo(cpx, cpy, tx(N.gridopB.x), ty(N.gridopB.y + N.gridopB.h / 2));
+  ctx.strokeStyle = '#8957e5';
+  ctx.lineWidth = ts(1.5);
+  ctx.setLineDash([ts(6), ts(4)]);
+  ctx.globalAlpha = 0.5;
+  ctx.stroke(); ctx.setLineDash([]);
+  ctx.font = `${ts(9)}px system-ui`;
+  ctx.fillStyle = '#8957e5';
+  ctx.globalAlpha = 0.7;
+  ctx.textAlign = 'center';
+  ctx.fillText('SWIM gossip (mTLS)', tx(720), ty(108));
+  ctx.restore();
+
+  // Cross-site mTLS between Grid Gateways
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(tx(N.gridgwA.x + N.gridgwA.w), ty(N.gridgwA.y + N.gridgwA.h / 2));
+  ctx.lineTo(tx(N.gridgwB.x), ty(N.gridgwB.y + N.gridgwB.h / 2));
+  ctx.strokeStyle = '#d29922';
+  ctx.lineWidth = ts(2);
+  ctx.setLineDash([ts(8), ts(5)]);
+  ctx.globalAlpha = 0.35;
+  ctx.stroke(); ctx.setLineDash([]);
+  ctx.font = `bold ${ts(8)}px system-ui`;
+  ctx.fillStyle = '#d29922';
+  ctx.globalAlpha = 0.5;
+  ctx.textAlign = 'center';
+  ctx.fillText('cross-site mTLS', tx(570), ty(158));
+  ctx.restore();
+
+  // DB connection lines (dashed, dim)
+  ctx.save();
+  ctx.globalAlpha = 0.25;
+  ctx.strokeStyle = '#39d2c0';
+  ctx.lineWidth = ts(1.2);
+  ctx.setLineDash([ts(4), ts(3)]);
+  // A → DB
+  ctx.beginPath();
+  ctx.moveTo(tx(375), ty(745));
+  ctx.lineTo(tx(500), ty(976));
+  ctx.stroke();
+  // B → DB
+  ctx.beginPath();
+  ctx.moveTo(tx(985), ty(575));
+  ctx.lineTo(tx(780), ty(976));
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+}
+
+function edgePt(n, targetX, targetY, yOff) {
+  const cx_ = n.x + n.w / 2, cy_ = n.y + n.h / 2;
+  const dx = targetX - cx_, dy = targetY - cy_;
+  if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return { x: cx_, y: cy_ };
+  const hw = n.w / 2, hh = n.h / 2;
+  let ex, ey;
+  if (Math.abs(dx) * hh > Math.abs(dy) * hw) {
+    ex = cx_ + (dx > 0 ? hw : -hw);
+    ey = cy_ + dy * (hw / Math.abs(dx));
+  } else {
+    ey = cy_ + (dy > 0 ? hh : -hh);
+    ex = cx_ + dx * (hh / Math.abs(dy));
+  }
+  return { x: ex, y: ey + (yOff || 0) };
+}
+
+function drawArrowLine(x1, y1, x2, y2, color, num, alpha) {
+  ctx.save();
+  ctx.globalAlpha = alpha || 1;
+  ctx.beginPath();
+  ctx.moveTo(tx(x1), ty(y1));
+  ctx.lineTo(tx(x2), ty(y2));
+  ctx.strokeStyle = color;
+  ctx.lineWidth = ts(2.5);
+  ctx.stroke();
+  const ang = Math.atan2(y2 - y1, x2 - x1), sz = ts(10);
+  ctx.beginPath();
+  ctx.moveTo(tx(x2), ty(y2));
+  ctx.lineTo(tx(x2) - sz * Math.cos(ang - 0.4), ty(y2) - sz * Math.sin(ang - 0.4));
+  ctx.lineTo(tx(x2) - sz * Math.cos(ang + 0.4), ty(y2) - sz * Math.sin(ang + 0.4));
+  ctx.closePath();
+  ctx.fillStyle = color; ctx.fill();
+  if (num != null) {
+    const mx = (x1 + x2) / 2, my = (y1 + y2) / 2, r = ts(12);
+    ctx.beginPath(); ctx.arc(tx(mx), ty(my), r, 0, Math.PI * 2);
+    ctx.fillStyle = color; ctx.fill();
+    ctx.font = `bold ${ts(10)}px system-ui`;
+    ctx.fillStyle = isDark ? '#0d1117' : '#fff';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(String(num), tx(mx), ty(my));
+  }
+  ctx.restore();
+}
+
+function resolveEdge(n, l, isFrom) {
+  const yo = l.yOff || 0;
+  if (isFrom) {
+    if (l.fromLeft) return { x: n.x, y: n.y + n.h / 2 + yo };
+    if (l.fromRight) return { x: n.x + n.w, y: n.y + n.h / 2 + yo };
+    if (l.fromBottom) return { x: n.x + n.w / 2 + (l.fromXOff || 0), y: n.y + n.h + yo };
+    if (l.fromTop) return { x: n.x + n.w / 2 + (l.fromXOff || 0), y: n.y + yo };
+    if (l.waypoints) return edgePt(n, l.waypoints[0].x, l.waypoints[0].y, yo);
+    return { x: n.x + n.w / 2, y: n.y + n.h / 2 + yo };
+  } else {
+    if (l.toLeft) return { x: n.x, y: n.y + n.h / 2 + yo };
+    if (l.toTop) return { x: n.x + n.w / 2 + (l.toXOff || 0), y: n.y + yo };
+    if (l.toRight) return { x: n.x + n.w, y: n.y + n.h / 2 + yo };
+    if (l.toBottom) return { x: n.x + n.w / 2 + (l.toXOff || 0), y: n.y + n.h + yo };
+    if (l.waypoints) { const wp = l.waypoints; return edgePt(n, wp[wp.length - 1].x, wp[wp.length - 1].y, yo); }
+    return { x: n.x + n.w / 2, y: n.y + n.h / 2 + yo };
+  }
+}
+
+function drawLines() {
+  lines.forEach(l => {
+    const fn = N[l.from], tn = N[l.to];
+    if (!fn || !tn) return;
+    if (l.waypoints) {
+      const fp = resolveEdge(fn, l, true);
+      const tp = resolveEdge(tn, l, false);
+      const pts = [fp, ...l.waypoints, tp];
+      ctx.save(); ctx.globalAlpha = 0.8;
+      ctx.beginPath();
+      ctx.moveTo(tx(pts[0].x), ty(pts[0].y));
+      for (let i = 1; i < pts.length; i++) ctx.lineTo(tx(pts[i].x), ty(pts[i].y));
+      ctx.strokeStyle = l.color; ctx.lineWidth = ts(2.5); ctx.stroke();
+      const last = pts[pts.length - 1], prev = pts[pts.length - 2];
+      const ang = Math.atan2(last.y - prev.y, last.x - prev.x), sz = ts(10);
+      ctx.beginPath();
+      ctx.moveTo(tx(last.x), ty(last.y));
+      ctx.lineTo(tx(last.x) - sz * Math.cos(ang - 0.4), ty(last.y) - sz * Math.sin(ang - 0.4));
+      ctx.lineTo(tx(last.x) - sz * Math.cos(ang + 0.4), ty(last.y) - sz * Math.sin(ang + 0.4));
+      ctx.closePath(); ctx.fillStyle = l.color; ctx.fill();
+      if (l.num != null) {
+        const mid = pts[Math.floor(pts.length / 2)];
+        const r = ts(12);
+        ctx.beginPath(); ctx.arc(tx(mid.x), ty(mid.y), r, 0, Math.PI * 2);
+        ctx.fillStyle = l.color; ctx.fill();
+        ctx.font = `bold ${ts(10)}px system-ui`;
+        ctx.fillStyle = isDark ? '#0d1117' : '#fff';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(String(l.num), tx(mid.x), ty(mid.y));
+      }
+      ctx.restore();
+    } else {
+      let fp = resolveEdge(fn, l, true);
+      let tp = resolveEdge(tn, l, false);
+      if (!l.fromLeft && !l.fromRight && !l.fromBottom && !l.fromTop) {
+        fp = edgePt(fn, tn.x + tn.w / 2, tn.y + tn.h / 2, l.yOff || 0);
+      }
+      if (!l.toLeft && !l.toRight && !l.toBottom && !l.toTop) {
+        tp = edgePt(tn, fn.x + fn.w / 2, fn.y + fn.h / 2, l.yOff || 0);
+      }
+      drawArrowLine(fp.x, fp.y, tp.x, tp.y, l.color, l.num, 0.8);
+    }
+  });
+}
+
+canvas.addEventListener('click', e => {
+  const mx = (e.clientX - ox) / sc, my = (e.clientY - oy) / sc;
+  for (const k of Object.keys(tips)) {
+    const n = N[k];
+    if (mx >= n.x && mx <= n.x + n.w && my >= n.y && my <= n.y + n.h) {
+      showOverlay(k); return;
+    }
+  }
+});
+canvas.addEventListener('mousemove', e => {
+  const mx = (e.clientX - ox) / sc, my = (e.clientY - oy) / sc;
+  let found = false;
+  for (const k of Object.keys(tips)) {
+    const n = N[k];
+    if (mx >= n.x && mx <= n.x + n.w && my >= n.y && my <= n.y + n.h) { found = true; break; }
+  }
+  canvas.style.cursor = found ? 'pointer' : 'default';
+});
+
+// ================================================================
+// ANIMATED DOT
+// ================================================================
+class Dot {
+  constructor(fKey, tKey, color, speed, cb, opts) {
+    this.color = color; this.speed = speed || 0.012; this.t = 0; this.cb = cb; this.alive = true;
+    const fn = N[fKey], tn = N[tKey];
+    const lo = opts || {};
+    let fp = resolveEdge(fn, lo, true);
+    let tp = resolveEdge(tn, lo, false);
+    if (!lo.fromLeft && !lo.fromRight && !lo.fromBottom && !lo.fromTop && !lo.waypoints) {
+      fp = edgePt(fn, tn.x + tn.w / 2, tn.y + tn.h / 2, lo.yOff || 0);
+    }
+    if (!lo.toLeft && !lo.toRight && !lo.toBottom && !lo.toTop && !lo.waypoints) {
+      tp = edgePt(tn, fn.x + fn.w / 2, fn.y + fn.h / 2, lo.yOff || 0);
+    }
+    this.pts = lo.waypoints ? [fp, ...lo.waypoints, tp] : [fp, tp];
+    this.segLens = []; this.totalLen = 0;
+    for (let i = 1; i < this.pts.length; i++) {
+      const dx = this.pts[i].x - this.pts[i - 1].x, dy = this.pts[i].y - this.pts[i - 1].y;
+      const len = Math.sqrt(dx * dx + dy * dy);
+      this.segLens.push(len); this.totalLen += len;
+    }
+    this.segIdx = 0; this.x = this.pts[0].x; this.y = this.pts[0].y;
+    const pxPerFrame = 4;
+    this.speed = this.totalLen > 0 ? (pxPerFrame / this.totalLen) * (speed / 0.02) : speed;
+  }
+  update() {
+    this.t += this.speed;
+    if (this.t >= 1) { this.t = 1; this.alive = false; if (this.cb) this.cb(); }
+    const dist = this.t * this.totalLen; let accum = 0;
+    for (let i = 0; i < this.segLens.length; i++) {
+      if (accum + this.segLens[i] >= dist) {
+        const segT = (dist - accum) / this.segLens[i];
+        this.x = this.pts[i].x + (this.pts[i + 1].x - this.pts[i].x) * segT;
+        this.y = this.pts[i].y + (this.pts[i + 1].y - this.pts[i].y) * segT;
+        this.segIdx = i; return;
+      }
+      accum += this.segLens[i];
+    }
+    const last = this.pts[this.pts.length - 1];
+    this.x = last.x; this.y = last.y; this.segIdx = this.segLens.length - 1;
+  }
+  posAt(t) {
+    const dist = Math.max(0, Math.min(1, t)) * this.totalLen; let accum = 0;
+    for (let i = 0; i < this.segLens.length; i++) {
+      if (accum + this.segLens[i] >= dist) {
+        const segT = (dist - accum) / this.segLens[i];
+        return { x: this.pts[i].x + (this.pts[i + 1].x - this.pts[i].x) * segT, y: this.pts[i].y + (this.pts[i + 1].y - this.pts[i].y) * segT };
+      }
+      accum += this.segLens[i];
+    }
+    const last = this.pts[this.pts.length - 1];
+    return { x: last.x, y: last.y };
+  }
+  draw() {
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(tx(this.pts[0].x), ty(this.pts[0].y));
+    for (let i = 0; i < this.segIdx; i++) ctx.lineTo(tx(this.pts[i + 1].x), ty(this.pts[i + 1].y));
+    ctx.lineTo(tx(this.x), ty(this.y));
+    ctx.strokeStyle = this.color; ctx.lineWidth = ts(2); ctx.globalAlpha = 0.3; ctx.stroke();
+    for (let j = 4; j >= 1; j--) {
+      const bt = this.t - j * 0.06; if (bt <= 0) continue;
+      const p = this.posAt(bt);
+      ctx.globalAlpha = 0.15 + (1 - j / 4) * 0.4;
+      ctx.beginPath(); ctx.arc(tx(p.x), ty(p.y), ts(2.5), 0, Math.PI * 2);
+      ctx.fillStyle = this.color; ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    const si = Math.min(this.segIdx, this.pts.length - 2);
+    const ang = Math.atan2(this.pts[si + 1].y - this.pts[si].y, this.pts[si + 1].x - this.pts[si].x);
+    ctx.save();
+    ctx.translate(tx(this.x), ty(this.y)); ctx.rotate(ang);
+    const pw = ts(13), ph = ts(7);
+    ctx.beginPath();
+    ctx.moveTo(pw / 2, 0); ctx.lineTo(pw / 6, -ph / 2); ctx.lineTo(-pw / 2, -ph / 2);
+    ctx.lineTo(-pw / 2, ph / 2); ctx.lineTo(pw / 6, ph / 2); ctx.closePath();
+    ctx.fillStyle = this.color; ctx.shadowColor = this.color; ctx.shadowBlur = ts(16); ctx.fill();
+    ctx.restore(); ctx.restore();
+  }
+}
+
+// ================================================================
+// MAIN DRAW
+// ================================================================
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+  drawBounds();
+  drawLines();
+  Object.keys(N).forEach(k => drawBox(k));
+  dots.forEach(d => { d.update(); d.draw(); });
+  dots = dots.filter(d => d.alive);
+  if (highlightKey && N[highlightKey]) {
+    const n = N[highlightKey]; const pad = 8;
+    ctx.save();
+    ctx.shadowColor = n.color || '#58a6ff'; ctx.shadowBlur = ts(30);
+    ctx.strokeStyle = n.color || '#58a6ff'; ctx.lineWidth = ts(3);
+    ctx.beginPath();
+    ctx.roundRect(tx(n.x) - pad, ty(n.y) - pad, ts(n.w) + pad * 2, ts(n.h) + pad * 2, ts(10));
+    ctx.stroke(); ctx.restore();
+  }
+}
+function animate() { draw(); animFrame = requestAnimationFrame(animate); }
+
+// ================================================================
+// STEPS
+// ================================================================
+function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+function initSteps() {
+  const ctr = document.getElementById('steps-ctr'); ctr.innerHTML = '';
+  flow.forEach((s, i) => {
+    const d = document.createElement('div');
+    d.className = 'step pending'; d.id = 'step-' + i;
+    d.innerHTML = `<span class="step-mk"></span><span>${esc(s.t)}</span>`;
+    d.onclick = () => jumpToStep(i);
+    ctr.appendChild(d);
+  });
+}
+
+// ================================================================
+// INSPECTOR
+// ================================================================
+function setInspPhase(phase) {
+  const el = document.getElementById('insp-title');
+  if (phase === 'request') { el.textContent = 'Request'; el.style.color = '#58a6ff'; }
+  else if (phase === 'response') { el.textContent = 'Response'; el.style.color = '#3fb950'; }
+  else if (phase === 'error') { el.textContent = 'Error Response'; el.style.color = '#f85149'; }
+}
+
+function initInspector() {
+  setInspPhase('request');
+  inspHeaders = [
+    { v: 'POST /v1/chat/completions', s: 'keep', id: 'h-path' },
+    { v: 'Authorization: Bearer sk-oai-abc123...', s: 'keep', id: 'h-auth' },
+    { v: 'Content-Type: application/json', s: 'keep', id: 'h-ct' },
+  ];
+  if (activeFlow === 'ext') {
+    inspBody = [
+      { v: '"model": "claude-haiku-4-5"', s: 'keep', id: 'b-model' },
+      { v: '"messages": [{"role":"user","content":"Hello"}]', s: 'keep', id: 'b-msgs' },
+      { v: '"max_tokens": 100', s: 'keep', id: 'b-max' },
+      { v: '"stream": false', s: 'keep', id: 'b-stream' },
+    ];
+  } else if (activeFlow === 'cross') {
+    inspBody = [
+      { v: '"model": "Llama-4-Scout"', s: 'keep', id: 'b-model' },
+      { v: '"messages": [{"role":"user","content":"Hello"}]', s: 'keep', id: 'b-msgs' },
+      { v: '"max_tokens": 100', s: 'keep', id: 'b-max' },
+      { v: '"stream": false', s: 'keep', id: 'b-stream' },
+    ];
+  } else {
+    inspBody = [
+      { v: '"model": "Qwen3-Coder-30B"', s: 'keep', id: 'b-model' },
+      { v: '"messages": [{"role":"user","content":"Hello"}]', s: 'keep', id: 'b-msgs' },
+      { v: '"max_tokens": 100', s: 'keep', id: 'b-max' },
+      { v: '"stream": false', s: 'keep', id: 'b-stream' },
+    ];
+  }
+  inspCycle = [];
+  inspStepLabel = 'Initial Request';
+  renderInsp();
+}
+
+function renderInsp() {
+  const el = document.getElementById('insp-content');
+  let h = `<div class="insp-plugin">${esc(inspStepLabel)}</div>`;
+  h += '<div class="insp-sec">Headers:</div>';
+  inspHeaders.forEach(l => { h += `<div class="insp-line ${l.s}">${esc(l.v)}</div>`; });
+  h += '<div class="insp-sec">Body:</div>';
+  inspBody.forEach(l => { h += `<div class="insp-line ${l.s}">${esc(l.v)}</div>`; });
+  if (inspCycle.length) {
+    h += '<div class="insp-sec">Routing State:</div>';
+    inspCycle.forEach(l => { h += `<div class="insp-line ${l.s}">${esc(l.v)}</div>`; });
+  }
+  el.innerHTML = h;
+}
+
+function resetStyles() {
+  inspHeaders.forEach(l => { if (l.s !== 'del' && l.s !== 'err') l.s = 'keep'; });
+  inspBody.forEach(l => { if (l.s !== 'del' && l.s !== 'err') l.s = 'keep'; });
+  inspCycle.forEach(l => { if (l.s !== 'del' && l.s !== 'err') l.s = 'keep'; });
+}
+
+function inspStep(stepNum) {
+  resetStyles();
+  if (activeFlow === 'auth') { inspStepAuth(stepNum); renderInsp(); return; }
+  if (activeFlow === 'local') { inspStepLocal(stepNum); renderInsp(); return; }
+  if (activeFlow === 'cross') { inspStepCross(stepNum); renderInsp(); return; }
+  if (activeFlow === 'ext') { inspStepExt(stepNum); renderInsp(); return; }
+}
+
+function inspStepLocal(stepNum) {
+  switch (stepNum) {
+    case 1: inspStepLabel = '① Client sends request'; break;
+    case 2: inspStepLabel = '② DNS → Cluster A'; break;
+    case 3: inspStepLabel = '③ Grid Gateway receives request'; break;
+    case 4:
+      inspStepLabel = '④ api_key_auth → maas-api validate';
+      inspHeaders.find(l => l.id === 'h-auth').s = 'highlight';
+      break;
+    case 5:
+      inspStepLabel = '⑤ maas-api → Shared DB (key hash lookup)';
+      inspHeaders.find(l => l.id === 'h-auth').s = 'highlight';
+      break;
+    case 6:
+      inspStepLabel = '⑥ maas-api: key valid';
+      inspHeaders.push({ v: 'X-Grid-Username: alice@example.com', s: 'add', id: 'h-user' });
+      inspHeaders.push({ v: 'X-Grid-Region: us-east-1', s: 'add', id: 'h-region' });
+      break;
+    case 7:
+      inspStepLabel = '⑦ model_to_header';
+      inspHeaders.push({ v: 'X-Gateway-Model-Name: Qwen3-Coder-30B', s: 'add', id: 'h-xmodel' });
+      break;
+    case 8:
+      inspStepLabel = '⑧ intelligent_route: local site match';
+      inspCycle = [
+        { v: 'site = "cluster-a" (local)', s: 'add', id: 'c-site' },
+        { v: 'locality = 1.0', s: 'add', id: 'c-loc' },
+        { v: 'strategy = "queueDepth"', s: 'add', id: 'c-strat' },
+      ];
+      break;
+    case 9:
+      inspStepLabel = '⑨ load_balancer: select local MaaS GW';
+      inspCycle.push({ v: 'target = "maas-gw-a:8080"', s: 'add', id: 'c-target' });
+      break;
+    case 10:
+      inspStepLabel = '⑩ Grid GW → MaaS Gateway (local)';
+      const xm = inspHeaders.find(l => l.id === 'h-xmodel');
+      if (xm) xm.s = 'highlight';
+      break;
+    case 11:
+      inspStepLabel = '⑪ Kuadrant: Authorino auth + Limitador rate limit';
+      break;
+    case 12:
+      inspStepLabel = '⑫ MaaS GW processes (API translation, cred injection)';
+      break;
+    case 13:
+      inspStepLabel = '⑬ MaaS GW → llm-d (inference)';
+      break;
+    case 14:
+      inspStepLabel = '⑭ llm-d responds';
+      setInspPhase('response');
+      inspHeaders = [
+        { v: 'HTTP/1.1 200 OK', s: 'keep', id: 'r-status' },
+        { v: 'Content-Type: application/json', s: 'keep', id: 'r-ct' },
+      ];
+      inspBody = [
+        { v: '"object": "chat.completion"', s: 'keep', id: 'r-obj' },
+        { v: '"choices": [{"message":{"content":"Hello!"}}]', s: 'keep', id: 'r-choices' },
+        { v: '"finish_reason": "stop"', s: 'keep', id: 'r-finish' },
+        { v: '"usage": {"prompt_tokens":8,"completion_tokens":2,"total_tokens":10}', s: 'keep', id: 'r-usage' },
+      ];
+      inspCycle = [];
+      break;
+    case 15:
+      inspStepLabel = '⑮ Kuadrant: Limitador reports token usage';
+      const u = inspBody.find(l => l.id === 'r-usage');
+      if (u) u.s = 'highlight';
+      break;
+    case 16:
+      inspStepLabel = '⑯ Response → MaaS GW → Grid GW';
+      break;
+    case 17: {
+      inspStepLabel = '⑰ Response → Client (OpenAI format)';
+      const rc = inspBody.find(l => l.id === 'r-choices');
+      if (rc) rc.s = 'highlight';
+      break; }
+  }
+}
+
+function inspStepCross(stepNum) {
+  switch (stepNum) {
+    case 1: inspStepLabel = '① Client sends request'; break;
+    case 2: inspStepLabel = '② DNS → Cluster A'; break;
+    case 3: inspStepLabel = '③ Grid Gateway receives request'; break;
+    case 4:
+      inspStepLabel = '④ api_key_auth → maas-api validate';
+      inspHeaders.find(l => l.id === 'h-auth').s = 'highlight';
+      break;
+    case 5:
+      inspStepLabel = '⑤ maas-api → Shared DB (key hash lookup)';
+      inspHeaders.find(l => l.id === 'h-auth').s = 'highlight';
+      break;
+    case 6:
+      inspStepLabel = '⑥ maas-api: key valid';
+      inspHeaders.push({ v: 'X-Grid-Username: alice@example.com', s: 'add', id: 'h-user' });
+      inspHeaders.push({ v: 'X-Grid-Region: us-east-1', s: 'add', id: 'h-region' });
+      break;
+    case 7:
+      inspStepLabel = '⑦ model_to_header';
+      inspHeaders.push({ v: 'X-Gateway-Model-Name: Llama-4-Scout', s: 'add', id: 'h-xmodel' });
+      break;
+    case 8:
+      inspStepLabel = '⑧ intelligent_route: remote site match';
+      inspCycle = [
+        { v: 'site = "cluster-b" (REMOTE)', s: 'add', id: 'c-site' },
+        { v: 'locality = 0.5 (remote)', s: 'add', id: 'c-loc' },
+        { v: 'reason = "no local match"', s: 'add', id: 'c-reason' },
+      ];
+      break;
+    case 9:
+      inspStepLabel = '⑨ load_balancer: select Cluster B';
+      inspCycle.push({ v: 'target = "grid-gw-b:8080" (mTLS)', s: 'add', id: 'c-target' });
+      break;
+    case 10:
+      inspStepLabel = '⑩ Grid GW A → Grid GW B (cross-site mTLS)';
+      const xm = inspHeaders.find(l => l.id === 'h-xmodel');
+      if (xm) xm.s = 'highlight';
+      break;
+    case 11:
+      inspStepLabel = '⑪ Grid GW B → MaaS Gateway B';
+      break;
+    case 12:
+      inspStepLabel = '⑫ Kuadrant B: Authorino auth + Limitador rate limit';
+      break;
+    case 13:
+      inspStepLabel = '⑬ MaaS GW B processes (IPP, cred injection)';
+      break;
+    case 14:
+      inspStepLabel = '⑭ MaaS GW B → llm-d (inference)';
+      break;
+    case 15:
+      inspStepLabel = '⑮ llm-d responds';
+      setInspPhase('response');
+      inspHeaders = [
+        { v: 'HTTP/1.1 200 OK', s: 'keep', id: 'r-status' },
+        { v: 'Content-Type: application/json', s: 'keep', id: 'r-ct' },
+      ];
+      inspBody = [
+        { v: '"object": "chat.completion"', s: 'keep', id: 'r-obj' },
+        { v: '"choices": [{"message":{"content":"Hello!"}}]', s: 'keep', id: 'r-choices' },
+        { v: '"finish_reason": "stop"', s: 'keep', id: 'r-finish' },
+        { v: '"usage": {"prompt_tokens":8,"completion_tokens":5,"total_tokens":13}', s: 'keep', id: 'r-usage' },
+      ];
+      inspCycle = [];
+      break;
+    case 16:
+      inspStepLabel = '⑯ Kuadrant B: Limitador reports token usage';
+      const u = inspBody.find(l => l.id === 'r-usage');
+      if (u) u.s = 'highlight';
+      break;
+    case 17:
+      inspStepLabel = '⑰ Response → MaaS GW B → Grid GW B';
+      break;
+    case 18:
+      inspStepLabel = '⑱ Response → Grid GW A (cross-site)';
+      break;
+    case 19: {
+      inspStepLabel = '⑲ Response → Client (OpenAI format)';
+      const rc = inspBody.find(l => l.id === 'r-choices');
+      if (rc) rc.s = 'highlight';
+      break; }
+  }
+}
+
+function inspStepExt(stepNum) {
+  switch (stepNum) {
+    case 1: inspStepLabel = '① Client sends request'; break;
+    case 2: inspStepLabel = '② DNS → Cluster A'; break;
+    case 3: inspStepLabel = '③ Grid Gateway receives request'; break;
+    case 4:
+      inspStepLabel = '④ api_key_auth → maas-api validate';
+      inspHeaders.find(l => l.id === 'h-auth').s = 'highlight';
+      break;
+    case 5:
+      inspStepLabel = '⑤ maas-api → Shared DB (key hash lookup)';
+      inspHeaders.find(l => l.id === 'h-auth').s = 'highlight';
+      break;
+    case 6:
+      inspStepLabel = '⑥ maas-api: key valid';
+      inspHeaders.push({ v: 'X-Grid-Username: alice@example.com', s: 'add', id: 'h-user' });
+      inspHeaders.push({ v: 'X-Grid-Region: us-east-1', s: 'add', id: 'h-region' });
+      break;
+    case 7:
+      inspStepLabel = '⑦ model_to_header';
+      inspHeaders.push({ v: 'X-Gateway-Model-Name: claude-haiku-4-5', s: 'add', id: 'h-xmodel' });
+      break;
+    case 8:
+      inspStepLabel = '⑧ intelligent_route: ExternalModel match';
+      inspCycle = [
+        { v: 'site = "cluster-a" (local)', s: 'add', id: 'c-site' },
+        { v: 'backend = "ExternalModel"', s: 'add', id: 'c-backend' },
+        { v: 'locality = 0.1 (api_provider)', s: 'add', id: 'c-loc' },
+      ];
+      break;
+    case 9:
+      inspStepLabel = '⑨ load_balancer: select local MaaS GW';
+      inspCycle.push({ v: 'target = "maas-gw-a:8080"', s: 'add', id: 'c-target' });
+      break;
+    case 10:
+      inspStepLabel = '⑩ Grid GW → MaaS Gateway (local)';
+      break;
+    case 11:
+      inspStepLabel = '⑪ Kuadrant: Authorino auth + Limitador rate limit';
+      break;
+    case 12:
+      inspStepLabel = '⑫ MaaS GW: API translation + cred injection';
+      inspHeaders.find(l => l.id === 'h-path').s = 'del';
+      inspHeaders.push({ v: 'POST /v1/messages', s: 'add', id: 'h-path2' });
+      inspHeaders.push({ v: 'x-api-key: sk-ant-api03-xxxxx...', s: 'add', id: 'h-xapi' });
+      inspHeaders.push({ v: 'anthropic-version: 2023-06-01', s: 'add', id: 'h-aver' });
+      break;
+    case 13:
+      inspStepLabel = '⑬ MaaS GW → api.anthropic.com';
+      const xapi = inspHeaders.find(l => l.id === 'h-xapi');
+      if (xapi) xapi.s = 'highlight';
+      break;
+    case 14:
+      inspStepLabel = '⑭ Anthropic responds';
+      setInspPhase('response');
+      inspHeaders = [
+        { v: 'HTTP/1.1 200 OK', s: 'keep', id: 'r-status' },
+        { v: 'Content-Type: application/json', s: 'keep', id: 'r-ct' },
+      ];
+      inspBody = [
+        { v: '"object": "chat.completion"', s: 'keep', id: 'r-obj' },
+        { v: '"choices": [{"message":{"content":"Hello!"}}]', s: 'keep', id: 'r-choices' },
+        { v: '"finish_reason": "stop"', s: 'keep', id: 'r-finish' },
+        { v: '"usage": {"prompt_tokens":8,"completion_tokens":2,"total_tokens":10}', s: 'keep', id: 'r-usage' },
+      ];
+      inspCycle = [];
+      break;
+    case 15:
+      inspStepLabel = '⑮ MaaS GW: api-translation (Anthropic → OpenAI)';
+      break;
+    case 16:
+      inspStepLabel = '⑯ Kuadrant: Limitador reports token usage';
+      const u = inspBody.find(l => l.id === 'r-usage');
+      if (u) u.s = 'highlight';
+      break;
+    case 17:
+      inspStepLabel = '⑰ Response → MaaS GW → Grid GW';
+      break;
+    case 18: {
+      inspStepLabel = '⑱ Response → Client (OpenAI format)';
+      const rc = inspBody.find(l => l.id === 'r-choices');
+      if (rc) rc.s = 'highlight';
+      break; }
+  }
+}
+
+function inspStepAuth(stepNum) {
+  switch (stepNum) {
+    case 1: inspStepLabel = '① Client sends request (invalid key)'; break;
+    case 2: inspStepLabel = '② DNS → Cluster A'; break;
+    case 3: inspStepLabel = '③ Grid Gateway receives request'; break;
+    case 4:
+      inspStepLabel = '④ api_key_auth → maas-api validate';
+      inspHeaders.find(l => l.id === 'h-auth').s = 'highlight';
+      break;
+    case 5:
+      inspStepLabel = '⑤ maas-api → Shared DB (key hash lookup)';
+      inspHeaders.find(l => l.id === 'h-auth').s = 'highlight';
+      break;
+    case 6:
+      inspStepLabel = '⑥ maas-api: key INVALID';
+      inspHeaders.find(l => l.id === 'h-auth').s = 'del';
+      inspBody = [
+        { v: '"valid": false', s: 'err', id: 'b-valid' },
+        { v: '"error": "invalid_api_key"', s: 'err', id: 'b-err' },
+      ];
+      break;
+    case 7:
+      inspStepLabel = '⑦ api_key_auth REJECTS request';
+      break;
+    case 8:
+      inspStepLabel = '⑧ 401 Unauthorized → Client';
+      setInspPhase('error');
+      inspHeaders = [
+        { v: 'HTTP/1.1 401 Unauthorized', s: 'err', id: 'r-status' },
+        { v: 'Content-Type: application/json', s: 'keep', id: 'r-ct' },
+      ];
+      inspBody = [
+        { v: '"error": "invalid_api_key"', s: 'err', id: 'r-err' },
+        { v: '"message": "API key is not valid"', s: 'err', id: 'r-msg' },
+      ];
+      inspCycle = [];
+      break;
+  }
+}
+
+// ================================================================
+// FLOW DEFINITIONS
+// ================================================================
+let activeFlow = 'local';
+
+const flowLocal = [
+  { t: '1. Client sends POST /v1/chat/completions', mode: 'arrow', f: 'user', to: 'dns', c: '#58a6ff', num: 1, fromRight: true, toLeft: true },
+  { t: '2. DNS resolves to Cluster A', mode: 'arrow', f: 'dns', to: 'gridgwA', c: '#58a6ff', num: 2, fromBottom: true, toTop: true, toXOff: -50 },
+  { t: '3. Grid Gateway receives request', mode: 'lightup', target: 'gridgwA', badge: 3 },
+  { t: '4. api_key_auth → maas-api validate', mode: 'arrow', f: 'f_auth', to: 'maasapiA', c: '#f0883e', num: 4, glow: 'filterContainer', fromRight: true, toLeft: true, yOff: -5 },
+  { t: '5. maas-api → Shared DB (key hash lookup)', mode: 'arrow', f: 'maasapiA', to: 'shareddb', c: '#39d2c0', num: 5, fromBottom: true, toTop: true, toXOff: -100 },
+  { t: '6. maas-api: key valid (identity + region)', mode: 'arrow', f: 'maasapiA', to: 'f_auth', c: '#f0883e', num: 6, fromLeft: true, toRight: true, yOff: 5 },
+  { t: '7. model_to_header: extract model name', mode: 'lightup', target: 'f_model', badge: 7 },
+  { t: '8. intelligent_route: overlay → local site (1.0)', mode: 'lightup', target: 'f_route', badge: 8 },
+  { t: '9. load_balancer: select local MaaS GW', mode: 'lightup', target: 'f_lb', badge: 9 },
+  { t: '10. Grid GW → MaaS Gateway (local)', mode: 'arrow', f: 'f_lb', to: 'maasgwA', c: '#58a6ff', num: 10, fromBottom: true, toTop: true, toXOff: -150 },
+  { t: '11. Kuadrant: Authorino auth + Limitador rate limit', mode: 'lightup', target: 'kuadrantA', badge: 11 },
+  { t: '12. MaaS GW processes (API translation, cred injection)', mode: 'lightup', target: 'maasgwA', badge: 12 },
+  { t: '13. MaaS GW → llm-d (EPP → vLLM) (inference)', mode: 'arrow', f: 'maasgwA', to: 'eppA', c: '#58a6ff', num: 13, fromBottom: true, toTop: true },
+  { t: '14. llm-d responds', mode: 'arrow', f: 'eppA', to: 'maasgwA', c: '#3fb950', num: 14, fromTop: true, fromXOff: 100, toBottom: true, toXOff: 100 },
+  { t: '15. Kuadrant: Limitador reports token usage', mode: 'lightup', target: 'kuadrantA', badge: 15 },
+  { t: '16. Response → MaaS GW → Grid GW', mode: 'arrow', f: 'maasgwA', to: 'gridgwA', c: '#3fb950', num: 16, fromTop: true, fromXOff: -150, toBottom: true, toXOff: 80, waypoints: [{ x: 155, y: 460 }] },
+  { t: '17. Response → Client', mode: 'arrow', f: 'gridgwA', to: 'user', c: '#3fb950', num: 17, fromLeft: true, toRight: true, yOff: 10 },
+];
+
+const flowCross = [
+  { t: '1. Client sends POST /v1/chat/completions', mode: 'arrow', f: 'user', to: 'dns', c: '#58a6ff', num: 1, fromRight: true, toLeft: true },
+  { t: '2. DNS resolves to Cluster A', mode: 'arrow', f: 'dns', to: 'gridgwA', c: '#58a6ff', num: 2, fromBottom: true, toTop: true, toXOff: -50 },
+  { t: '3. Grid Gateway receives request', mode: 'lightup', target: 'gridgwA', badge: 3 },
+  { t: '4. api_key_auth → maas-api validate', mode: 'arrow', f: 'f_auth', to: 'maasapiA', c: '#f0883e', num: 4, glow: 'filterContainer', fromRight: true, toLeft: true, yOff: -5 },
+  { t: '5. maas-api → Shared DB (key hash lookup)', mode: 'arrow', f: 'maasapiA', to: 'shareddb', c: '#39d2c0', num: 5, fromBottom: true, toTop: true, toXOff: -100 },
+  { t: '6. maas-api: key valid', mode: 'arrow', f: 'maasapiA', to: 'f_auth', c: '#f0883e', num: 6, fromLeft: true, toRight: true, yOff: 5 },
+  { t: '7. model_to_header: extract model name', mode: 'lightup', target: 'f_model', badge: 7 },
+  { t: '8. intelligent_route: no local match → remote site B', mode: 'lightup', target: 'f_route', badge: 8 },
+  { t: '9. load_balancer: select Cluster B', mode: 'lightup', target: 'f_lb', badge: 9 },
+  { t: '10. Grid GW A → Grid GW B (cross-site mTLS)', mode: 'arrow', f: 'gridgwA', to: 'gridgwB', c: '#d29922', num: 10, fromRight: true, toLeft: true },
+  { t: '11. Grid GW B → MaaS Gateway B', mode: 'arrow', f: 'gridgwB', to: 'maasgwB', c: '#58a6ff', num: 11, fromBottom: true, toTop: true },
+  { t: '12. Kuadrant B: Authorino auth + Limitador rate limit', mode: 'lightup', target: 'kuadrantB', badge: 12 },
+  { t: '13. MaaS GW B processes (IPP, cred injection)', mode: 'lightup', target: 'maasgwB', badge: 13 },
+  { t: '14. MaaS GW B → llm-d (EPP → vLLM) B (inference)', mode: 'arrow', f: 'maasgwB', to: 'eppB', c: '#58a6ff', num: 14, fromBottom: true, toTop: true },
+  { t: '15. llm-d responds', mode: 'arrow', f: 'eppB', to: 'maasgwB', c: '#3fb950', num: 15, fromTop: true, fromXOff: 100, toBottom: true, toXOff: 100 },
+  { t: '16. Kuadrant B: Limitador reports token usage', mode: 'lightup', target: 'kuadrantB', badge: 16 },
+  { t: '17. Response → MaaS GW B → Grid GW B', mode: 'arrow', f: 'maasgwB', to: 'gridgwB', c: '#3fb950', num: 17, fromTop: true, toBottom: true },
+  { t: '18. Response → Grid GW A (cross-site)', mode: 'arrow', f: 'gridgwB', to: 'gridgwA', c: '#3fb950', num: 18, fromLeft: true, toRight: true, yOff: 10 },
+  { t: '19. Response → Client', mode: 'arrow', f: 'gridgwA', to: 'user', c: '#3fb950', num: 19, fromLeft: true, toRight: true, yOff: 10 },
+];
+
+const flowExt = [
+  { t: '1. Client sends POST /v1/chat/completions', mode: 'arrow', f: 'user', to: 'dns', c: '#58a6ff', num: 1, fromRight: true, toLeft: true },
+  { t: '2. DNS resolves to Cluster A', mode: 'arrow', f: 'dns', to: 'gridgwA', c: '#58a6ff', num: 2, fromBottom: true, toTop: true, toXOff: -50 },
+  { t: '3. Grid Gateway receives request', mode: 'lightup', target: 'gridgwA', badge: 3 },
+  { t: '4. api_key_auth → maas-api validate', mode: 'arrow', f: 'f_auth', to: 'maasapiA', c: '#f0883e', num: 4, glow: 'filterContainer', fromRight: true, toLeft: true, yOff: -5 },
+  { t: '5. maas-api → Shared DB (key hash lookup)', mode: 'arrow', f: 'maasapiA', to: 'shareddb', c: '#39d2c0', num: 5, fromBottom: true, toTop: true, toXOff: -100 },
+  { t: '6. maas-api: key valid', mode: 'arrow', f: 'maasapiA', to: 'f_auth', c: '#f0883e', num: 6, fromLeft: true, toRight: true, yOff: 5 },
+  { t: '7. model_to_header: extract model name', mode: 'lightup', target: 'f_model', badge: 7 },
+  { t: '8. intelligent_route: ExternalModel match', mode: 'lightup', target: 'f_route', badge: 8 },
+  { t: '9. load_balancer: select local MaaS GW', mode: 'lightup', target: 'f_lb', badge: 9 },
+  { t: '10. Grid GW → MaaS Gateway (local)', mode: 'arrow', f: 'f_lb', to: 'maasgwA', c: '#58a6ff', num: 10, fromBottom: true, toTop: true, toXOff: -150 },
+  { t: '11. Kuadrant: Authorino auth + Limitador rate limit', mode: 'lightup', target: 'kuadrantA', badge: 11 },
+  { t: '12. MaaS GW: API translation + cred injection', mode: 'lightup', target: 'maasgwA', badge: 12 },
+  { t: '13. MaaS GW → external API (api.anthropic.com)', mode: 'arrow', f: 'maasgwA', to: 'extA', c: '#58a6ff', num: 13, fromBottom: true, fromXOff: -100, toTop: true, toXOff: -100 },
+  { t: '14. Anthropic responds', mode: 'arrow', f: 'extA', to: 'maasgwA', c: '#3fb950', num: 14, fromTop: true, fromXOff: 100, toBottom: true, toXOff: 100 },
+  { t: '15. MaaS GW: api-translation (Anthropic → OpenAI)', mode: 'lightup', target: 'maasgwA', badge: 15 },
+  { t: '16. Kuadrant: Limitador reports token usage', mode: 'lightup', target: 'kuadrantA', badge: 16 },
+  { t: '17. Response → MaaS GW → Grid GW', mode: 'arrow', f: 'maasgwA', to: 'gridgwA', c: '#3fb950', num: 17, fromTop: true, fromXOff: -150, toBottom: true, toXOff: 80, waypoints: [{ x: 155, y: 460 }] },
+  { t: '18. Response → Client (OpenAI format)', mode: 'arrow', f: 'gridgwA', to: 'user', c: '#3fb950', num: 18, fromLeft: true, toRight: true, yOff: 10 },
+];
+
+const flowAuth = [
+  { t: '1. Client sends POST /v1/chat/completions (invalid key)', mode: 'arrow', f: 'user', to: 'dns', c: '#58a6ff', num: 1, fromRight: true, toLeft: true },
+  { t: '2. DNS resolves to Cluster A', mode: 'arrow', f: 'dns', to: 'gridgwA', c: '#58a6ff', num: 2, fromBottom: true, toTop: true, toXOff: -50 },
+  { t: '3. Grid Gateway receives request', mode: 'lightup', target: 'gridgwA', badge: 3 },
+  { t: '4. api_key_auth → maas-api validate', mode: 'arrow', f: 'f_auth', to: 'maasapiA', c: '#f0883e', num: 4, glow: 'filterContainer', fromRight: true, toLeft: true, yOff: -5 },
+  { t: '5. maas-api → Shared DB (key hash lookup)', mode: 'arrow', f: 'maasapiA', to: 'shareddb', c: '#39d2c0', num: 5, fromBottom: true, toTop: true, toXOff: -100 },
+  { t: '6. maas-api: key INVALID', mode: 'arrow', f: 'maasapiA', to: 'f_auth', c: '#f85149', num: 6, fromLeft: true, toRight: true, yOff: 5 },
+  { t: '7. api_key_auth REJECTS request', mode: 'lightup', target: 'f_auth', badge: '✗', errColor: '#f85149' },
+  { t: '8. 401 Unauthorized → Client', mode: 'arrow', f: 'gridgwA', to: 'user', c: '#f85149', num: 8, fromLeft: true, toRight: true, yOff: 10 },
+];
+
+const flowMap = { local: flowLocal, cross: flowCross, ext: flowExt, auth: flowAuth };
+const flowLabels = { local: 'Local Routing (on-cluster)', cross: 'Cross-site Routing (remote)', ext: 'External Model (via MaaS)', auth: 'Auth Failure (401)' };
+const flowOrder = ['local', 'cross', 'ext', 'auth'];
+let flow = flowLocal;
+
+function updateTitle() {
+  document.getElementById('flow-label').textContent = '· ' + flowLabels[activeFlow];
+}
+
+// ================================================================
+// RUN / RESET
+// ================================================================
+function updatePlayBtn() {
+  const btn = document.querySelector('.start');
+  if (paused) btn.innerHTML = '&#9654; Resume';
+  else if (running) btn.innerHTML = '&#9646;&#9646; Pause';
+  else btn.innerHTML = '&#9654; Start';
+}
+
+function cycleSpeed() {
+  const speeds = [0.5, 1, 2];
+  const idx = speeds.indexOf(playbackSpeed);
+  playbackSpeed = speeds[(idx + 1) % speeds.length];
+  document.getElementById('speed-btn').textContent = playbackSpeed + 'x';
+}
+
+function toggleLoop() {
+  loopMode = !loopMode;
+  const btn = document.getElementById('loop-btn');
+  btn.style.background = loopMode ? (isDark ? '#79c0ff22' : '#79c0ff18') : 'transparent';
+  btn.textContent = loopMode ? '⟳ Loop ON' : '⟳ Loop';
+  if (loopMode && !running && !paused) run();
+}
+
+function stepOpts(s) {
+  return {
+    fromLeft: s.fromLeft, toLeft: s.toLeft, fromRight: s.fromRight, toRight: s.toRight,
+    fromBottom: s.fromBottom, fromTop: s.fromTop, toTop: s.toTop, toBottom: s.toBottom,
+    yOff: s.yOff, fromXOff: s.fromXOff, toXOff: s.toXOff, waypoints: s.waypoints
+  };
+}
+
+function stepLine(s) {
+  return {
+    from: s.f, to: s.to, color: s.c, num: s.num,
+    fromLeft: s.fromLeft, toLeft: s.toLeft, fromRight: s.fromRight, toRight: s.toRight,
+    fromBottom: s.fromBottom, fromTop: s.fromTop, toTop: s.toTop, toBottom: s.toBottom,
+    yOff: s.yOff, fromXOff: s.fromXOff, toXOff: s.toXOff, waypoints: s.waypoints
+  };
+}
+
+let stepOnceMode = false;
+
+function stepOnce() {
+  if (running && !paused) {
+    paused = true; running = false;
+    if (stepTimer) { clearTimeout(stepTimer); stepTimer = null; }
+    updatePlayBtn(); return;
+  }
+  if (runStepIndex === 0) initInspector();
+  if (runStepIndex >= flow.length) { doReset(); return; }
+  stepOnceMode = true;
+  running = true; paused = false;
+  if (!animFrame) animate();
+  execStep();
+}
+
+function run() {
+  if (paused) {
+    paused = false; running = true; updatePlayBtn();
+    if (!animFrame) animate();
+    stepTimer = setTimeout(execStep, 300 / playbackSpeed);
+    return;
+  }
+  if (running) {
+    paused = true; running = false;
+    if (stepTimer) { clearTimeout(stepTimer); stepTimer = null; }
+    updatePlayBtn(); return;
+  }
+  doReset();
+  running = true; paused = false; runStepIndex = 0; currentStepDone = 0;
+  initInspector(); updatePlayBtn();
+  stepTimer = setTimeout(execStep, 300);
+  if (!animFrame) animate();
+}
+
+function execStep() {
+  if (!running || paused || runStepIndex >= flow.length) {
+    if (runStepIndex >= flow.length) {
+      running = false; paused = false; updatePlayBtn();
+      if (loopMode) {
+        stepTimer = setTimeout(() => {
+          const idx = flowOrder.indexOf(activeFlow);
+          activeFlow = flowOrder[(idx + 1) % flowOrder.length];
+          flow = flowMap[activeFlow];
+          document.getElementById('flow-select').value = activeFlow;
+          updateTitle();
+          doReset(); run();
+        }, 3000 / playbackSpeed);
+      }
+    }
+    return;
+  }
+  const si = runStepIndex;
+  const s = flow[si];
+  for (let j = 0; j < si; j++) {
+    const prev = document.getElementById('step-' + j);
+    if (prev) prev.className = 'step done';
+  }
+  const el = document.getElementById('step-' + si);
+  el.className = 'step active';
+  el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  inspStep(si + 1);
+
+  if (s.mode === 'arrow') {
+    if (s.f) activeNodes.add(s.f);
+    dots.push(new Dot(s.f, s.to, s.c, 0.02 * playbackSpeed, () => {
+      lines.push(stepLine(s));
+      if (s.glow) glowing.add(s.glow);
+      activeNodes.add(s.to);
+      el.className = 'step done';
+      currentStepDone = si + 1;
+      saveSnapshot(si);
+      runStepIndex++;
+      if (stepOnceMode) { stepOnceMode = false; paused = true; running = false; updatePlayBtn(); }
+      else if (running && !paused) { stepTimer = setTimeout(execStep, 300 / playbackSpeed); }
+    }, stepOpts(s)));
+  } else if (s.mode === 'lightup') {
+    fading[s.target] = Date.now();
+    activeNodes.add(s.target);
+    if (s.errColor) N[s.target]._origColor = N[s.target]._origColor || N[s.target].color, N[s.target].color = s.errColor;
+    if (badges[s.target] != null) {
+      const existing = Array.isArray(badges[s.target]) ? badges[s.target] : [badges[s.target]];
+      existing.push(s.badge);
+      badges[s.target] = existing;
+    } else {
+      badges[s.target] = s.badge;
+    }
+    el.className = 'step done';
+    currentStepDone = si + 1;
+    saveSnapshot(si);
+    runStepIndex++;
+    if (stepOnceMode) { stepOnceMode = false; paused = true; running = false; updatePlayBtn(); }
+    else if (running && !paused) { stepTimer = setTimeout(execStep, 800 / playbackSpeed); }
+  }
+}
+
+function saveSnapshot(stepIdx) {
+  snapshots[stepIdx] = {
+    activeNodes: new Set(activeNodes),
+    badges: JSON.parse(JSON.stringify(badges)),
+    lines: JSON.parse(JSON.stringify(lines)),
+    glowing: new Set(glowing),
+  };
+}
+
+function restoreSnapshot(stepIdx) {
+  if (stepIdx < 0) { activeNodes.clear(); badges = {}; lines = []; glowing.clear(); return; }
+  const snap = snapshots[stepIdx];
+  if (!snap) return;
+  activeNodes = new Set(snap.activeNodes);
+  badges = JSON.parse(JSON.stringify(snap.badges));
+  lines = JSON.parse(JSON.stringify(snap.lines));
+  glowing = new Set(snap.glowing);
+}
+
+function simulateUpTo(targetStep) {
+  activeNodes.clear(); badges = {}; lines = []; glowing.clear();
+  for (let i = 0; i <= targetStep; i++) {
+    const s = flow[i];
+    if (s.mode === 'arrow') {
+      if (s.f) activeNodes.add(s.f);
+      lines.push(stepLine(s));
+      if (s.glow) glowing.add(s.glow);
+      activeNodes.add(s.to);
+    } else if (s.mode === 'lightup') {
+      activeNodes.add(s.target);
+      if (s.errColor) N[s.target]._origColor = N[s.target]._origColor || N[s.target].color, N[s.target].color = s.errColor;
+      if (badges[s.target] != null) {
+        const existing = Array.isArray(badges[s.target]) ? badges[s.target] : [badges[s.target]];
+        existing.push(s.badge);
+        badges[s.target] = existing;
+      } else {
+        badges[s.target] = s.badge;
+      }
+    }
+    saveSnapshot(i);
+  }
+}
+
+function jumpToStep(targetStep) {
+  if (running) { running = false; if (stepTimer) { clearTimeout(stepTimer); stepTimer = null; } }
+  if (!snapshots[targetStep]) simulateUpTo(targetStep);
+  restoreSnapshot(targetStep);
+  currentStepDone = targetStep + 1;
+  runStepIndex = targetStep + 1;
+  document.querySelectorAll('.step').forEach((el, i) => {
+    if (i <= targetStep) el.className = 'step done';
+    else el.className = 'step pending';
+  });
+  const clickedEl = document.getElementById('step-' + targetStep);
+  if (clickedEl) clickedEl.className = 'step active';
+  initInspector();
+  for (let i = 1; i <= targetStep + 1; i++) inspStep(i);
+  dots = []; fading = {};
+  paused = true;
+  updatePlayBtn();
+  if (animFrame) { cancelAnimationFrame(animFrame); animFrame = null; }
+  requestAnimationFrame(() => { draw(); draw(); });
+}
+
+function doReset() {
+  Object.keys(N).forEach(k => { if (N[k]._origColor) { N[k].color = N[k]._origColor; delete N[k]._origColor; } });
+  running = false; paused = false; runStepIndex = 0;
+  if (stepTimer) { clearTimeout(stepTimer); stepTimer = null; }
+  dots = []; activeNodes.clear(); badges = {}; lines = []; glowing.clear(); fading = {};
+  currentStepDone = 0; snapshots = [];
+  inspHeaders = []; inspBody = []; inspCycle = [];
+  initSteps(); updatePlayBtn();
+  document.getElementById('insp-content').innerHTML = '<div style="color:#8b949e;font-family:-apple-system,sans-serif;font-size:13px">Press Start to see the request flow</div>';
+  if (animFrame) { cancelAnimationFrame(animFrame); animFrame = null; }
+  draw();
+}
+
+document.getElementById('flow-select').addEventListener('change', function() {
+  activeFlow = this.value;
+  flow = flowMap[activeFlow];
+  updateTitle();
+  doReset();
+});
+
+resize();
+initSteps();
+updateTitle();
+draw();
+
+setTimeout(() => { toggleLoop(); }, 500);
+
+// Mobile splash animation
+(function(){
+  if(window.innerWidth>=800)return;
+  const mc=document.getElementById('mobile-canvas');
+  if(!mc)return;
+  const mx=mc.getContext('2d');
+  const dpr=window.devicePixelRatio||1;
+  let mW,mH;
+  function mResize(){const r=mc.getBoundingClientRect();mW=r.width;mH=r.height;mc.width=mW*dpr;mc.height=mH*dpr;mx.setTransform(dpr,0,0,dpr,0,0);}
+  mResize();
+  const boxes=[
+    {x:.15,y:.12,label:'Client',color:'#58a6ff'},
+    {x:.5,y:.08,label:'DNS',color:'#58a6ff'},
+    {x:.2,y:.35,label:'Grid GW',color:'#d29922'},
+    {x:.8,y:.35,label:'Grid GW',color:'#d29922'},
+    {x:.2,y:.55,label:'MaaS',color:'#8957e5'},
+    {x:.8,y:.55,label:'MaaS',color:'#8957e5'},
+    {x:.2,y:.75,label:'llm-d',color:'#39d2c0'},
+    {x:.8,y:.75,label:'llm-d',color:'#39d2c0'},
+    {x:.5,y:.92,label:'PostgreSQL',color:'#39d2c0'},
+  ];
+  let particles=[];
+  function spawn(){
+    const fi=Math.floor(Math.random()*boxes.length);
+    let ti=Math.floor(Math.random()*boxes.length);
+    while(ti===fi)ti=Math.floor(Math.random()*boxes.length);
+    const colors=['#58a6ff','#d29922','#8957e5','#3fb950','#f0883e','#f85149'];
+    particles.push({f:fi,t:ti,p:0,sp:.006+Math.random()*.01,c:colors[Math.floor(Math.random()*colors.length)],sz:2+Math.random()*3,a:.3+Math.random()*.4});
+  }
+  for(let i=0;i<10;i++)spawn();
+  function mDraw(){
+    mx.clearRect(0,0,mW,mH);
+    boxes.forEach(b=>{mx.save();mx.globalAlpha=.12;mx.fillStyle=b.color;mx.beginPath();mx.arc(b.x*mW,b.y*mH,22,0,Math.PI*2);mx.fill();mx.globalAlpha=.35;mx.font='bold 9px system-ui';mx.textAlign='center';mx.fillStyle=b.color;mx.fillText(b.label,b.x*mW,b.y*mH+3);mx.restore();});
+    particles.forEach(p=>{const f=boxes[p.f],t=boxes[p.t];const px=f.x*mW+(t.x*mW-f.x*mW)*p.p;const py=f.y*mH+(t.y*mH-f.y*mH)*p.p;const fade=p.p<.1?p.p/.1:p.p>.9?(1-p.p)/.1:1;mx.save();mx.globalAlpha=p.a*fade;mx.fillStyle=p.c;mx.shadowColor=p.c;mx.shadowBlur=8;mx.beginPath();mx.arc(px,py,p.sz,0,Math.PI*2);mx.fill();mx.restore();p.p+=p.sp;});
+    particles=particles.filter(p=>p.p<1);
+    if(Math.random()<.2)spawn();
+    requestAnimationFrame(mDraw);
+  }
+  mDraw();
+})();
+</script>
+</body>
+</html>

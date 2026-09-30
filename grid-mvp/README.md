@@ -16,12 +16,37 @@ inference across clusters with MaaS (Models-as-a-Service) integration.
 
 ## Diagrams
 
+### Animated flow visualizers (FlowStory)
+
+Interactive step-by-step diagrams with animated request flows,
+clickable component tooltips, and request/response inspector panels.
+Built using the [FlowStory](https://noyitz.github.io/flowstory/)
+framework — each diagram is a self-contained HTML file with no
+external dependencies, generated from the architecture docs in this
+repo using Claude Code as the authoring tool.
+
+| Diagram | Flows | Preview |
+|---------|-------|---------|
+| Multi-cluster Data Plane | Local routing, Cross-site routing, External model, Auth failure | [View](https://htmlpreview.github.io/?https://github.com/danielezonca/spare-notes/blob/main/grid-mvp/grid-dataplane-flow.html) |
+| Platform Admin Flows | Deploy model, Grant model access, Metric scraping, View dashboards | [View](https://htmlpreview.github.io/?https://github.com/danielezonca/spare-notes/blob/main/grid-mvp/grid-platform-admin-flow.html) |
+| Tenant Admin Flows | Add user to group, Upgrade user, Remove user access | [View](https://htmlpreview.github.io/?https://github.com/danielezonca/spare-notes/blob/main/grid-mvp/grid-tenant-admin-flow.html) |
+| Tenant User Flows | List models, Create API key, Model discovery (SWIM), Use model | [View](https://htmlpreview.github.io/?https://github.com/danielezonca/spare-notes/blob/main/grid-mvp/grid-tenant-user-flow.html) |
+
+### Static diagrams
+
 | Diagram | Preview |
 |---------|---------|
 | Multi-cluster Data Plane | [View](https://htmlpreview.github.io/?https://github.com/danielezonca/spare-notes/blob/main/grid-mvp/grid-dataplane.html) |
 | Platform Admin Flows | [View](https://htmlpreview.github.io/?https://github.com/danielezonca/spare-notes/blob/main/grid-mvp/grid-platform-admin.html) |
 | Tenant Admin Flows | [View](https://htmlpreview.github.io/?https://github.com/danielezonca/spare-notes/blob/main/grid-mvp/grid-tenant-admin.html) |
 | Tenant User Flows | [View](https://htmlpreview.github.io/?https://github.com/danielezonca/spare-notes/blob/main/grid-mvp/grid-tenant-user.html) |
+
+### Related
+
+The animated diagrams reference the [AI Inference Gateway — MaaS Flow
+Visualizer](https://noyitz.github.io/ai-gateway-docs/ai-gateway-flow.html)
+for detailed single-cluster MaaS request processing (Envoy → Kuadrant
+→ Praxis plugins → llm-d/external providers).
 
 ## Key Decisions
 
@@ -31,5 +56,5 @@ inference across clusters with MaaS (Models-as-a-Service) integration.
 - **Model listing**: maas-api reads Grid overlay for cross-cluster model discovery (SWIM gossip)
 - **DB**: Shared PostgreSQL across sites, evolve to hub + reconciler for cross-region
 - **Clusters**: All equivalent — hub is a DNS designation, not a deployment difference
-- **UIs**: Two standalone apps — Admin (RHCE) and User Portal (DevHub/Backstage)
+- **UIs**: RHOAI Customer Portal (standalone RHOAI Dashboard) for tenant users, Admin Console (RHCE) for platform admins
 - **Observability**: ACM Multi-cluster Observability Operator → Thanos → Grafana
