@@ -1,6 +1,7 @@
 # Details
 
 # Ai Grid Signals Contract
+Author @hexfusion
 
 ## Summary
 
