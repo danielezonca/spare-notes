@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AI Grid — Data Plane Flow Visualizer</title>
+<title>AI Grid — Data Plane Flow Visualizer (Ingress &amp; Inference)</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0d1117;color:#c9d1d9;overflow:hidden;transition:background .3s,color .3s}
@@ -100,13 +100,13 @@ body.light .steps-section::-webkit-scrollbar-thumb,body.light .insp-section::-we
 <div class="mobile-splash show" id="mobile-splash">
   <canvas id="mobile-canvas"></canvas>
   <div class="mobile-splash-content">
-    <div class="badge"><span>AI Grid</span> Multi-cluster</div>
+    <div class="badge"><span>AI Grid</span> Ingress &amp; Inference</div>
     <h1>AI Grid<br><span class="grad">Data Plane</span></h1>
-    <p class="sub">Interactive animated request flow<br>across the multi-cluster AI Grid</p>
+    <p class="sub">Interactive animated request flow<br>Ingress &amp; Inference topology &middot; MaaS-first flow</p>
     <div class="stats">
       <div class="stat amber">4 Flows</div>
-      <div class="stat blue">2 Clusters</div>
-      <div class="stat green">62 Steps</div>
+      <div class="stat blue">Ingress cluster + Inference cluster</div>
+      <div class="stat green">MaaS First</div>
       <div class="stat purple">20+ Components</div>
     </div>
     <div class="laptop-msg">
@@ -122,9 +122,9 @@ body.light .steps-section::-webkit-scrollbar-thumb,body.light .insp-section::-we
 <div class="right-panel">
   <div class="flow-bar">
     <select id="flow-select">
-      <option value="local">Local Routing (on-cluster)</option>
-      <option value="cross">Cross-site Routing (remote)</option>
-      <option value="ext">External Model (via MaaS)</option>
+      <option value="local">Local Routing (ingress cluster)</option>
+      <option value="cross">Cross-site Routing (ingress → inference)</option>
+      <option value="ext">External Model (direct, Grid bypassed)</option>
       <option value="auth">Auth Failure (401)</option>
     </select>
     <button class="start" onclick="run()">&#9654; Start</button>
@@ -134,7 +134,7 @@ body.light .steps-section::-webkit-scrollbar-thumb,body.light .insp-section::-we
     <button class="rst" onclick="doReset()">Reset</button>
   </div>
   <div class="steps-section" id="steps-section">
-    <div class="steps-title">Flow Steps <span style="font-weight:400;font-size:11px;color:#8b949e">· click to jump</span></div>
+    <div class="steps-title">Flow Steps <span style="font-weight:400;font-size:11px;color:#8b949e">&middot; click to jump</span></div>
     <div id="steps-ctr"></div>
   </div>
   <div class="insp-section" id="insp-section">
@@ -159,12 +159,12 @@ body.light .steps-section::-webkit-scrollbar-thumb,body.light .insp-section::-we
   <div class="legend-title">Legend</div>
   <div class="legend-item"><div class="legend-dot" style="background:#58a6ff"></div>Request</div>
   <div class="legend-item"><div class="legend-dot" style="background:#3fb950"></div>Response</div>
-  <div class="legend-item"><div class="legend-dot" style="background:#d29922"></div>Grid Gateway</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#8957e5"></div>MaaS GW (entry)</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#d29922"></div>Grid GW (routing)</div>
   <div class="legend-item"><div class="legend-dot" style="background:#f0883e"></div>Auth / Rate Limit</div>
-  <div class="legend-item"><div class="legend-dot" style="background:#8957e5"></div>MaaS / Operator</div>
   <div class="legend-item"><div class="legend-dot" style="background:#39d2c0"></div>Inference</div>
   <div class="legend-item"><div class="legend-dot" style="background:#f85149"></div>External / Error</div>
-  <div style="margin-top:10px;padding-top:8px;border-top:1px solid #30363d;font-size:11px;color:#484f58">Built with <a href="https://noyitz.github.io/flowstory/" target="_blank" style="color:#484f58;text-decoration:none" onmouseover="this.style.color='#58a6ff'" onmouseout="this.style.color='#484f58'">FlowStory</a></div>
+  <div style="margin-top:10px;padding-top:8px;border-top:1px solid #30363d;font-size:11px;color:#484f58">Ingress &amp; Inference &middot; MaaS-first flow</div>
 </div>
 
 <canvas id="canvas"></canvas>
@@ -178,7 +178,7 @@ let paused = false, runStepIndex = 0, stepTimer = null, playbackSpeed = 1, loopM
 let inspHeaders = [], inspBody = [], inspCycle = [], inspStepLabel = '';
 let snapshots = [];
 
-const LW = 1400, LH = 1100;
+const LW = 1400, LH = 1050;
 let ox = 0, oy = 0, sc = 1;
 
 function toggleTheme() {
@@ -189,80 +189,73 @@ function toggleTheme() {
 }
 
 // ================================================================
-// NODES
+// NODES — Ingress & Inference cluster topology, MaaS-first flow
 // ================================================================
 const N = {
   user: { x: -30, y: 80, w: 110, h: 50, label: 'Client / Agent', type: 'icon' },
-  dns: { x: 200, y: 55, w: 260, h: 36, label: 'ai-gateway.example.com', sublabel: 'DNS', color: '#58a6ff', fs: 12 },
+  dns: { x: 200, y: 55, w: 260, h: 36, label: 'ai-gateway.example.com', sublabel: 'DNS → Ingress Cluster', color: '#58a6ff', fs: 12 },
 
-  // Cluster A
-  clusterA: { x: 80, y: 100, w: 570, h: 850, type: 'boundary', label: 'CLUSTER A · us-east-1 · hub (DNS)', labelAlign: 'left' },
+  // ── Ingress Cluster A (us-east-1) ──
+  clusterA: { x: 80, y: 100, w: 570, h: 830, type: 'boundary', label: 'INGRESS CLUSTER A · us-east-1', labelAlign: 'left' },
 
-  gridgwA: { x: 120, y: 140, w: 260, h: 60, label: 'Grid Gateway', sublabel: 'Praxis AI', color: '#d29922', fs: 16 },
+  // MaaS GW is the entry point (top of ingress cluster)
+  maasgwA: { x: 120, y: 140, w: 510, h: 60, label: 'MaaS Gateway · Praxis AI', sublabel: 'Auth (Authorino) · Rate limit (Limitador) · Cred injection · Metering', color: '#8957e5', fs: 14 },
 
-  // Grid GW filter chain (Cluster A)
-  filterContainer: { x: 110, y: 215, w: 280, h: 230, type: 'container', label: 'Grid Gateway Filter Chain', color: '#d29922' },
-  f_auth:   { x: 130, y: 255, w: 240, h: 36, label: 'api_key_auth', sublabel: '→ maas-api validate', color: '#f0883e', type: 'plugin', inner: true, fs: 13 },
-  f_model:  { x: 130, y: 297, w: 240, h: 36, label: 'model_to_header', sublabel: 'body → X-Gateway-Model-Name', color: '#58a6ff', type: 'plugin', inner: true, fs: 13 },
-  f_route:  { x: 130, y: 339, w: 240, h: 36, label: 'intelligent_route', sublabel: 'overlay · geo · load scoring', color: '#d29922', type: 'plugin', inner: true, fs: 13 },
-  f_lb:     { x: 130, y: 381, w: 240, h: 36, label: 'load_balancer', sublabel: '→ selected site MaaS GW', color: '#d29922', type: 'plugin', inner: true, fs: 13 },
+  kuadrantA: { x: 120, y: 215, w: 240, h: 45, label: 'Kuadrant', sublabel: 'Limitador · Authorino', color: '#f0883e', fs: 13 },
 
-  gridopA: { x: 420, y: 160, w: 200, h: 50, label: 'Grid Operator', sublabel: 'SWIM · Signals · Overlay', color: '#8957e5', fs: 14 },
+  maasapiA: { x: 380, y: 215, w: 250, h: 45, label: 'maas-api', sublabel: 'Key validate · Models · Keys', color: '#8957e5', fs: 14 },
 
-  maasapiA: { x: 420, y: 240, w: 200, h: 50, label: 'maas-api', sublabel: 'Key validate · Models', color: '#8957e5', fs: 14 },
+  // Grid GW does routing only (below MaaS GW)
+  gridgwA: { x: 120, y: 290, w: 260, h: 55, label: 'Grid Gateway', sublabel: 'Praxis AI · routing only', color: '#d29922', fs: 16 },
 
-  maasgwA: { x: 120, y: 470, w: 510, h: 60, label: 'MaaS Gateway · Praxis AI', sublabel: 'Auth · Rate limit · API translation · Cred injection', color: '#8957e5', fs: 14 },
+  filterContainer: { x: 110, y: 355, w: 280, h: 175, type: 'container', label: 'Grid Gateway Filter Chain (routing only)', color: '#d29922' },
+  f_model:  { x: 130, y: 390, w: 240, h: 36, label: 'model_to_header', sublabel: 'body → X-Gateway-Model-Name', color: '#58a6ff', type: 'plugin', inner: true, fs: 13 },
+  f_route:  { x: 130, y: 432, w: 240, h: 36, label: 'intelligent_route', sublabel: 'overlay · geo · load scoring', color: '#d29922', type: 'plugin', inner: true, fs: 13 },
+  f_lb:     { x: 130, y: 474, w: 240, h: 36, label: 'load_balancer', sublabel: '→ selected target GW', color: '#d29922', type: 'plugin', inner: true, fs: 13 },
 
-  kuadrantA: { x: 120, y: 550, w: 240, h: 45, label: 'Kuadrant', sublabel: 'Limitador · Authorino', color: '#f0883e', fs: 13 },
+  gridopA: { x: 420, y: 290, w: 210, h: 50, label: 'Grid Operator', sublabel: 'SWIM · Signals · Overlay', color: '#8957e5', fs: 14 },
 
-  eppA: { x: 120, y: 620, w: 510, h: 50, label: 'llm-d (EPP → vLLM) · Qwen3-Coder-30B', sublabel: 'LLMInferenceService · local backend', color: '#39d2c0', fs: 14 },
+  // Standalone GW + llm-d on ingress cluster (optional, but shown)
+  standalonegwA: { x: 120, y: 560, w: 510, h: 45, label: 'Standalone Gateway', sublabel: 'llm-d gateway · serves local models', color: '#39d2c0', fs: 13 },
+  eppA: { x: 120, y: 620, w: 510, h: 50, label: 'llm-d (EPP → vLLM) · Qwen3-Coder-30B', sublabel: 'local inference backend', color: '#39d2c0', fs: 14 },
 
-  extA: { x: 120, y: 695, w: 510, h: 50, label: 'ExternalModel CRs', sublabel: 'api.anthropic.com · api.openai.com', color: '#f85149', fs: 14 },
+  // External models (MaaS routes directly, Grid bypassed)
+  extA: { x: 120, y: 690, w: 510, h: 50, label: 'External APIs (MaaS direct)', sublabel: 'api.anthropic.com · api.openai.com · Grid bypassed', color: '#f85149', fs: 14 },
 
-  // Cluster B
-  clusterB: { x: 720, y: 100, w: 520, h: 850, type: 'boundary', label: 'CLUSTER B · eu-west-1', labelAlign: 'left' },
+  // ── Inference Cluster B (eu-west-1) ──
+  clusterB: { x: 720, y: 100, w: 520, h: 620, type: 'boundary', label: 'INFERENCE CLUSTER B · eu-west-1', labelAlign: 'left' },
 
-  gridgwB: { x: 760, y: 140, w: 240, h: 55, label: 'Grid Gateway', sublabel: 'Praxis AI', color: '#d29922', fs: 14 },
+  gridgwB: { x: 760, y: 140, w: 240, h: 55, label: 'Grid Gateway', sublabel: 'Praxis AI · routing only', color: '#d29922', fs: 14 },
   gridopB: { x: 1020, y: 140, w: 190, h: 55, label: 'Grid Operator', sublabel: 'SWIM · Signals', color: '#8957e5', fs: 13 },
 
-  maasapiB: { x: 1020, y: 220, w: 190, h: 45, label: 'maas-api', sublabel: 'Key validate', color: '#8957e5', fs: 13 },
-
-  maasgwB: { x: 760, y: 310, w: 450, h: 55, label: 'MaaS Gateway · Praxis AI', sublabel: 'Auth · Rate limit · API translation · Cred injection', color: '#8957e5', fs: 13 },
-
-  kuadrantB: { x: 760, y: 390, w: 210, h: 40, label: 'Kuadrant', sublabel: 'Limitador · Authorino', color: '#f0883e', fs: 12 },
-
-  eppB: { x: 760, y: 455, w: 450, h: 50, label: 'llm-d (EPP → vLLM) · Llama-4-Scout', sublabel: 'LLMInferenceService · local backend', color: '#39d2c0', fs: 13 },
-
-  extB: { x: 760, y: 530, w: 450, h: 45, label: 'ExternalModel CRs', sublabel: 'api.anthropic.com', color: '#f85149', fs: 13 },
+  standalonegwB: { x: 760, y: 240, w: 450, h: 45, label: 'Standalone Gateway', sublabel: 'llm-d gateway · serves local models', color: '#39d2c0', fs: 13 },
+  eppB: { x: 760, y: 310, w: 450, h: 50, label: 'llm-d (EPP → vLLM) · Llama-4-Scout', sublabel: 'local inference backend', color: '#39d2c0', fs: 13 },
 
   // Shared
-  shareddb: { x: 350, y: 980, w: 560, h: 55, label: 'Shared PostgreSQL', sublabel: 'API keys · Subscriptions · User quotas', color: '#39d2c0', fs: 16 },
+  shareddb: { x: 200, y: 960, w: 400, h: 55, label: 'Shared PostgreSQL (ingress clusters)', sublabel: 'API keys · Subscriptions · Ingress clusters only', color: '#39d2c0', fs: 16 },
 };
 
 // ================================================================
 // TOOLTIPS
 // ================================================================
 const tips = {
-  gridgwA: { t: 'Grid Gateway (Praxis AI)', d: 'Consumer entry point for the multi-cluster Grid. Runs a filter chain: api_key_auth, model_to_header, intelligent_route, load_balancer. Routes requests locally or cross-site via mTLS.', dt: [['Ports', ':8080 gateway, :9901 admin'], ['Filters', 'api_key_auth → model_to_header → intelligent_route → load_balancer'], ['Cross-site', 'mTLS to peer Grid Gateways'], ['Config', 'Overlay ConfigMap from Grid Operator']], links: [['Praxis AI', 'https://github.com/praxis-ai/praxis']] },
-  gridgwB: { t: 'Grid Gateway (Praxis AI)', d: 'Same binary as Cluster A. Receives cross-site requests from peer Grid Gateways via mTLS, or direct consumer requests if DNS resolves here.', dt: [['Ports', ':8080 gateway, :9901 admin'], ['Role', 'Entry point or cross-site receiver']] },
-  gridopA: { t: 'Grid Operator', d: 'Manages cross-cluster state via SWIM gossip protocol and signals polling. Generates the routing overlay ConfigMap consumed by the Grid Gateway.', dt: [['SWIM', 'UDP gossip, AES-GCM encrypted, bincode'], ['Signals', 'GET /v1/site/signals (mTLS, Prometheus format)'], ['Output', 'Overlay ConfigMap with routing candidates'], ['CRDT', 'GridStateSnapshot — models, metrics, tenant spend']], links: [['Signals Contract', 'https://github.com/danielezonca/spare-notes/blob/main/grid-mvp/Ai-Grid-Signals-Contract.md']] },
-  gridopB: { t: 'Grid Operator', d: 'Same as Cluster A. Gossips membership, liveness, model capabilities, and load metrics to all peers.', dt: [['SWIM', 'Peer-to-peer gossip'], ['Overlay', 'Local file/ConfigMap']] },
-  f_auth: { t: 'api_key_auth Filter', d: 'Validates the consumer API key by calling maas-api /internal/v1/api-keys/validate. Returns identity, region, and token budget. Sets AuthenticatedIdentity for downstream filters.', dt: [['Endpoint', 'POST /internal/v1/api-keys/validate → maas-api'], ['Returns', 'username, groups, region, tokenBudget'], ['Sets', 'AuthenticatedIdentity (subject_id, roles, custom_claims)'], ['Header', 'X-Grid-Region (from tenant config)'], ['Error', '401 Unauthorized if key invalid']] },
+  maasgwA: { t: 'MaaS Gateway (Praxis AI) — Ingress cluster Entry Point', d: 'Customer-facing entry point on ingress clusters. Runs Kuadrant (Authorino + Limitador) for auth and rate limiting. Handles credential injection and metering. Forwards llm-d model requests to Grid GW for routing. Routes external API requests directly.', dt: [['Auth', 'Authorino (MaaSAuthPolicy enforcement)'], ['Rate Limit', 'Limitador (TokenRateLimitPolicy)'], ['Credential', 'Injection from ExternalModel credentialRef'], ['llm-d models', 'Forward to Grid GW for routing'], ['External APIs', 'Route directly (Grid bypassed)']], links: [['Detailed MaaS Flow', 'https://noyitz.github.io/ai-gateway-docs/ai-gateway-flow.html']] },
+  gridgwA: { t: 'Grid Gateway (Praxis AI) — Routing Only', d: 'Handles cross-cluster model routing. No authentication — MaaS GW handles all auth upstream. Runs model_to_header, intelligent_route, and load_balancer filters. Routes to local standalone GW or remote Grid GW via mTLS.', dt: [['Ports', ':8080 gateway, :9901 admin'], ['Filters', 'model_to_header → intelligent_route → load_balancer'], ['Auth', 'None — trusts MaaS GW via network-level controls'], ['Cross-site', 'mTLS to peer Grid Gateways'], ['Config', 'Overlay ConfigMap from Grid Operator']] },
+  gridgwB: { t: 'Grid Gateway (Praxis AI) — Inference cluster', d: 'Receives cross-site requests from ingress cluster Grid Gateways via mTLS. Routes to local standalone GW. No MaaS GW on inference clusters.', dt: [['Role', 'Cross-site receiver, local routing'], ['Auth', 'None — trusts mTLS identity']] },
+  gridopA: { t: 'Grid Operator', d: 'Manages cross-cluster state via SWIM gossip protocol and signals polling. Generates the routing overlay ConfigMap consumed by the Grid Gateway. Runs ai grid reconciler for llm-d discovery and external model reconciler for MaaS registration.', dt: [['SWIM', 'UDP gossip, AES-GCM encrypted, bincode'], ['Signals', 'GET /v1/site/signals (mTLS, Prometheus format)'], ['Output', 'Overlay ConfigMap with routing candidates'], ['Reconcilers', 'ai grid (llm-d → InferenceProvider) + external model (InferenceProvider → ExternalModel)']], links: [['Signals Contract', 'https://github.com/danielezonca/spare-notes/blob/main/grid-mvp/Ai-Grid-Signals-Contract.md']] },
+  gridopB: { t: 'Grid Operator (Inference cluster)', d: 'Same as Ingress cluster. Gossips membership, liveness, model capabilities, and load metrics. Runs ai grid reconciler for local llm-d discovery. Does NOT run external model reconciler (no MaaS CRDs on inference cluster).', dt: [['SWIM', 'Peer-to-peer gossip'], ['Reconciler', 'ai grid only (no MaaS CRDs on inference cluster)']] },
   f_model: { t: 'model_to_header Filter', d: 'Extracts the "model" field from the JSON request body and sets it as the X-Gateway-Model-Name HTTP header for model-based routing decisions.', dt: [['Input', 'Request body "model" field'], ['Output', 'X-Gateway-Model-Name header'], ['Used by', 'intelligent_route for overlay lookup']] },
-  f_route: { t: 'intelligent_route Filter', d: 'Reads the overlay ConfigMap and scores routing candidates. Matches X-Grid-Region against candidate labels for geo-aware routing. Uses locality, cost, queue depth, and KV cache signals.', dt: [['Input', 'X-Gateway-Model-Name, X-Grid-Region, overlay'], ['Scoring', 'locality (1.0 local, 0.4-0.7 remote, 0.1 API)'], ['Signals', 'cost, kv_cache, latency, locality, prefix_cache, queue_depth'], ['Output', 'Selected site + backend']], links: [['Scoring Strategies', 'https://github.com/danielezonca/spare-notes/blob/main/grid-mvp/design-notes.md']] },
-  f_lb: { t: 'load_balancer Filter', d: 'Forwards the request to the selected site\'s MaaS Gateway. For local routing, forwards within the cluster. For cross-site, routes via mTLS to the remote Grid Gateway.', dt: [['Local', 'Forward to local MaaS Gateway'], ['Cross-site', 'mTLS to remote Grid Gateway → MaaS Gateway'], ['Protocol', 'HTTP/1.1, HTTP/2']] },
-  maasgwA: { t: 'MaaS Gateway (Praxis AI)', d: 'Site-local model routing and enforcement. Runs Kuadrant (Authorino + Limitador) for auth and rate limiting, Praxis plugins for API translation and credential injection.', dt: [['Auth', 'Authorino (MaaSAuthPolicy enforcement)'], ['Rate Limit', 'Limitador (TokenRateLimitPolicy)'], ['Plugins', 'model-provider-resolver, api-translation, apikey-injection'], ['Routing', 'llm-d (EPP → vLLM) or ExternalModel → external API']], links: [['Detailed MaaS Flow', 'https://noyitz.github.io/ai-gateway-docs/ai-gateway-flow.html']] },
-  maasgwB: { t: 'MaaS Gateway (Praxis AI)', d: 'Same as Cluster A. Receives requests from the local Grid Gateway after cross-site routing. Uses Praxis plugins for API translation and credential injection.', dt: [['Role', 'Site-local enforcement + routing']], links: [['Detailed MaaS Flow', 'https://noyitz.github.io/ai-gateway-docs/ai-gateway-flow.html']] },
-  maasapiA: { t: 'maas-api', d: 'HTTP API for key management, model listing, and subscriptions. Called by api_key_auth for key validation (hot path) and by Authorino for subscription-level auth.', dt: [['Validate', 'POST /internal/v1/api-keys/validate'], ['Models', 'GET /v1/models (local + Grid overlay)'], ['Keys', 'POST /v1/api-keys, DELETE /v1/api-keys/:id'], ['DB', 'Shared PostgreSQL']], links: [['MaaS Repo', 'https://github.com/opendatahub-io/models-as-a-service']] },
-  maasapiB: { t: 'maas-api', d: 'Same as Cluster A. Connected to the same shared PostgreSQL — API keys work on any cluster.', dt: [['DB', 'Shared PostgreSQL (same as Cluster A)'], ['Keys', 'Same key validates on any site']] },
-  kuadrantA: { t: 'Kuadrant (Limitador + Authorino)', d: 'Rate limiting and auth policy enforcement at the MaaS level. Limitador counts tokens per-user/per-model. Authorino validates subscription-level access.', dt: [['Rate Limit', 'Token-based via TokenRateLimitPolicy'], ['Auth', 'Subscription-level via MaaSAuthPolicy'], ['Config', 'CRD-driven (maas-controller reconciles)']], links: [['Kuadrant Docs', 'https://docs.kuadrant.io']] },
-  kuadrantB: { t: 'Kuadrant (Limitador + Authorino)', d: 'Same as Cluster A.', dt: [['Role', 'Site-local rate limiting and auth']] },
-  eppA: { t: 'llm-d (EPP → vLLM)', d: 'llm-d inference stack. The Endpoint Picker Proxy (EPP) selects the optimal pod for on-cluster inference. vLLM serves the model with P/D disaggregated serving support.', dt: [['Project', 'llm-d (open-source inference platform)'], ['Model', 'Qwen3-Coder-30B'], ['EPP', 'Pod selection (queue depth, KV cache, affinity)'], ['Engine', 'vLLM'], ['CRD', 'LLMInferenceService']], links: [['llm-d', 'https://github.com/llm-d'], ['vLLM', 'https://docs.vllm.ai/']] },
-  eppB: { t: 'llm-d (EPP → vLLM)', d: 'Same llm-d inference stack as Cluster A, serving a different model.', dt: [['Project', 'llm-d'], ['Model', 'Llama-4-Scout'], ['Engine', 'vLLM']] },
-  extA: { t: 'External Models (MaaS level)', d: 'External LLM providers configured via ExternalModel CRDs. MaaS Gateway handles API translation and credential injection. Rate limited by Limitador.', dt: [['Providers', 'Anthropic, OpenAI, Azure, Bedrock, Vertex'], ['CRD', 'ExternalModel (inference.opendatahub.io)'], ['Credential', 'Injected from K8s Secret'], ['Rate Limit', 'Via Kuadrant/Limitador']] },
-  extB: { t: 'External Models (MaaS level)', d: 'Same as Cluster A. External models configured per-site via ExternalModel CRDs.', dt: [['Providers', 'Anthropic']] },
-  shareddb: { t: 'Shared PostgreSQL', d: 'Single database shared across all clusters. Stores API keys (hashed), subscriptions, user quotas, and model listings. Keys created on any cluster work everywhere.', dt: [['Data', 'API keys, subscriptions, quotas'], ['Access', 'All maas-api instances connect'], ['Keys', 'Hash stored, plaintext never persisted'], ['Evolution', 'Hub + reconciler for cross-region (Phase 2)']] },
-  dns: { t: 'DNS', d: 'Stable endpoint that consumers configure once. Resolves to the hub cluster by default. Any cluster can be promoted to hub by updating DNS.', dt: [['Endpoint', 'ai-gateway.example.com'], ['Resolution', 'Hub cluster (DNS designation)'], ['Failover', 'Any cluster can be promoted']] },
+  f_route: { t: 'intelligent_route Filter', d: 'Reads the overlay ConfigMap and scores routing candidates. Uses locality, cost, queue depth, and KV cache signals. Selects optimal site for the requested model.', dt: [['Input', 'X-Gateway-Model-Name, overlay'], ['Scoring', 'locality (1.0 local, 0.4-0.7 remote, 0.1 API)'], ['Signals', 'cost, kv_cache, latency, locality, prefix_cache, queue_depth'], ['Output', 'Selected site + backend']] },
+  f_lb: { t: 'load_balancer Filter', d: 'Forwards the request to the selected target. For local routing, forwards to the local standalone GW. For cross-site, routes via mTLS to the remote Grid Gateway.', dt: [['Local', 'Forward to local standalone GW'], ['Cross-site', 'mTLS to remote Grid GW → standalone GW'], ['Protocol', 'HTTP/1.1, HTTP/2']] },
+  maasapiA: { t: 'maas-api', d: 'HTTP API for key management, model listing, and subscriptions. Called by Authorino for key validation. Reads Grid overlay for cross-cluster model discovery.', dt: [['Validate', 'POST /internal/v1/api-keys/validate'], ['Models', 'GET /v1/models (local + Grid overlay)'], ['Keys', 'POST /v1/api-keys, DELETE /v1/api-keys/:id'], ['DB', 'Shared PostgreSQL (ingress clusters only)']], links: [['MaaS Repo', 'https://github.com/opendatahub-io/models-as-a-service']] },
+  kuadrantA: { t: 'Kuadrant (Limitador + Authorino)', d: 'Rate limiting and auth policy enforcement at the MaaS level. Limitador counts tokens per-user/per-model. Authorino validates subscription-level access via maas-api.', dt: [['Rate Limit', 'Token-based via TokenRateLimitPolicy'], ['Auth', 'Subscription-level via MaaSAuthPolicy'], ['Config', 'CRD-driven (maas-controller reconciles)']], links: [['Kuadrant Docs', 'https://docs.kuadrant.io']] },
+  standalonegwA: { t: 'Standalone Gateway (Hub)', d: 'Serves llm-d models on the ingress cluster. Separate from MaaS GW and Grid GW. llm-d deployments attach to this gateway, not to MaaS GW.', dt: [['Role', 'llm-d model serving'], ['Upstream', 'EPP → vLLM pods']] },
+  standalonegwB: { t: 'Standalone Gateway (Inference cluster)', d: 'Serves llm-d models on the inference cluster. Receives requests from the local Grid GW (which received them cross-site from an ingress cluster Grid GW via mTLS).', dt: [['Role', 'llm-d model serving'], ['Upstream', 'EPP → vLLM pods']] },
+  eppA: { t: 'llm-d (EPP → vLLM)', d: 'llm-d inference stack. The Endpoint Picker Proxy (EPP) selects the optimal pod for on-cluster inference. vLLM serves the model.', dt: [['Model', 'Qwen3-Coder-30B'], ['EPP', 'Pod selection (queue depth, KV cache, affinity)'], ['Engine', 'vLLM']], links: [['llm-d', 'https://github.com/llm-d']] },
+  eppB: { t: 'llm-d (EPP → vLLM) — Inference cluster', d: 'Same llm-d inference stack on the inference cluster, serving a different model.', dt: [['Model', 'Llama-4-Scout'], ['Engine', 'vLLM']] },
+  extA: { t: 'External APIs (MaaS direct)', d: 'External LLM providers. MaaS GW routes directly to these — Grid is bypassed because there is no cross-cluster routing decision. Rate limited by Limitador. Credential injection from ExternalModel CR.', dt: [['Providers', 'Anthropic, OpenAI, Azure, Bedrock, Vertex'], ['CRD', 'ExternalModel (maas.opendatahub.io)'], ['Grid', 'Bypassed — fixed external endpoint']] },
+  shareddb: { t: 'Shared PostgreSQL (Ingress Clusters)', d: 'Single database shared across ingress clusters only. Inference clusters do not connect. Stores API keys (hashed), subscriptions, user quotas.', dt: [['Data', 'API keys, subscriptions, quotas'], ['Access', 'Ingress cluster maas-api instances only'], ['Inference clusters', 'Not connected (no maas-api)'], ['Keys', 'Hash stored, plaintext never persisted']] },
+  dns: { t: 'DNS', d: 'Stable endpoint resolving to the nearest ingress cluster MaaS Gateway. Consumer entry point for all traffic.', dt: [['Endpoint', 'ai-gateway.example.com'], ['Resolution', 'Ingress cluster MaaS Gateway'], ['Failover', 'Multiple hubs per region, DNS failover']] },
 };
 
 let overlayWasRunning = false, highlightKey = null;
@@ -413,7 +406,7 @@ function drawContainer(key, isGlow) {
 
 function drawBounds() {
   const c = C();
-  // Cluster A boundary
+  // Ingress Cluster A boundary
   const ca = N.clusterA;
   ctx.beginPath();
   ctx.roundRect(tx(ca.x), ty(ca.y), ts(ca.w), ts(ca.h), ts(14));
@@ -427,9 +420,9 @@ function drawBounds() {
   ctx.fillText(ca.label, tx(ca.x + 12), ty(ca.y + 18));
   ctx.textAlign = 'right';
   ctx.fillStyle = '#3fb95088';
-  ctx.fillText('hub (DNS)', tx(ca.x + ca.w - 12), ty(ca.y + 18));
+  ctx.fillText('INGRESS', tx(ca.x + ca.w - 12), ty(ca.y + 18));
 
-  // Cluster B boundary
+  // Inference Cluster B boundary
   const cb = N.clusterB;
   ctx.beginPath();
   ctx.roundRect(tx(cb.x), ty(cb.y), ts(cb.w), ts(cb.h), ts(14));
@@ -441,6 +434,9 @@ function drawBounds() {
   ctx.fillStyle = isDark ? 'rgba(139,148,158,0.6)' : 'rgba(101,109,118,0.6)';
   ctx.textAlign = 'left';
   ctx.fillText(cb.label, tx(cb.x + 12), ty(cb.y + 18));
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#d2992288';
+  ctx.fillText('INFERENCE · No MaaS GW', tx(cb.x + cb.w - 12), ty(cb.y + 18));
 
   // Filter chain container
   drawContainer('filterContainer', glowing.has('filterContainer'));
@@ -449,7 +445,7 @@ function drawBounds() {
   ctx.save();
   ctx.beginPath();
   ctx.moveTo(tx(N.gridopA.x + N.gridopA.w), ty(N.gridopA.y + N.gridopA.h / 2));
-  const cpx = tx(700), cpy = ty(100);
+  const cpx = tx(750), cpy = ty(250);
   ctx.quadraticCurveTo(cpx, cpy, tx(N.gridopB.x), ty(N.gridopB.y + N.gridopB.h / 2));
   ctx.strokeStyle = '#8957e5';
   ctx.lineWidth = ts(1.5);
@@ -460,7 +456,7 @@ function drawBounds() {
   ctx.fillStyle = '#8957e5';
   ctx.globalAlpha = 0.7;
   ctx.textAlign = 'center';
-  ctx.fillText('SWIM gossip (mTLS)', tx(720), ty(108));
+  ctx.fillText('SWIM gossip (mTLS)', tx(760), ty(260));
   ctx.restore();
 
   // Cross-site mTLS between Grid Gateways
@@ -477,26 +473,29 @@ function drawBounds() {
   ctx.fillStyle = '#d29922';
   ctx.globalAlpha = 0.5;
   ctx.textAlign = 'center';
-  ctx.fillText('cross-site mTLS', tx(570), ty(158));
+  ctx.fillText('cross-site mTLS', tx(570), ty(310));
   ctx.restore();
 
-  // DB connection lines (dashed, dim)
+  // DB connection (ingress A only, inference clusters not connected)
   ctx.save();
   ctx.globalAlpha = 0.25;
   ctx.strokeStyle = '#39d2c0';
   ctx.lineWidth = ts(1.2);
   ctx.setLineDash([ts(4), ts(3)]);
-  // A → DB
   ctx.beginPath();
-  ctx.moveTo(tx(375), ty(745));
-  ctx.lineTo(tx(500), ty(976));
-  ctx.stroke();
-  // B → DB
-  ctx.beginPath();
-  ctx.moveTo(tx(985), ty(575));
-  ctx.lineTo(tx(780), ty(976));
+  ctx.moveTo(tx(505), ty(260));
+  ctx.lineTo(tx(400), ty(956));
   ctx.stroke();
   ctx.setLineDash([]);
+  ctx.restore();
+
+  // Inference cluster "no DB" annotation
+  ctx.save();
+  ctx.font = `${ts(9)}px system-ui`;
+  ctx.fillStyle = '#6e768188';
+  ctx.textAlign = 'center';
+  ctx.fillText('Air-gapped from internet OK', tx(980), ty(400));
+  ctx.fillText('Private mesh connectivity required', tx(980), ty(415));
   ctx.restore();
 }
 
@@ -822,11 +821,11 @@ function inspStep(stepNum) {
 
 function inspStepLocal(stepNum) {
   switch (stepNum) {
-    case 1: inspStepLabel = '① Client sends request'; break;
-    case 2: inspStepLabel = '② DNS → Cluster A'; break;
-    case 3: inspStepLabel = '③ Grid Gateway receives request'; break;
+    case 1: inspStepLabel = '① Client sends request to MaaS GW (ingress)'; break;
+    case 2: inspStepLabel = '② DNS → Ingress Cluster A MaaS GW'; break;
+    case 3: inspStepLabel = '③ MaaS GW receives request'; break;
     case 4:
-      inspStepLabel = '④ api_key_auth → maas-api validate';
+      inspStepLabel = '④ Authorino → maas-api validate (key lookup)';
       inspHeaders.find(l => l.id === 'h-auth').s = 'highlight';
       break;
     case 5:
@@ -834,42 +833,32 @@ function inspStepLocal(stepNum) {
       inspHeaders.find(l => l.id === 'h-auth').s = 'highlight';
       break;
     case 6:
-      inspStepLabel = '⑥ maas-api: key valid';
-      inspHeaders.push({ v: 'X-Grid-Username: alice@example.com', s: 'add', id: 'h-user' });
-      inspHeaders.push({ v: 'X-Grid-Region: us-east-1', s: 'add', id: 'h-region' });
+      inspStepLabel = '⑥ Key valid — Limitador checks token budget';
       break;
     case 7:
-      inspStepLabel = '⑦ model_to_header';
-      inspHeaders.push({ v: 'X-Gateway-Model-Name: Qwen3-Coder-30B', s: 'add', id: 'h-xmodel' });
+      inspStepLabel = '⑦ MaaS GW → Grid GW (routing)';
       break;
     case 8:
-      inspStepLabel = '⑧ intelligent_route: local site match';
+      inspStepLabel = '⑧ model_to_header: extract model name';
+      inspHeaders.push({ v: 'X-Gateway-Model-Name: Qwen3-Coder-30B', s: 'add', id: 'h-xmodel' });
+      break;
+    case 9:
+      inspStepLabel = '⑨ intelligent_route: local site match';
       inspCycle = [
         { v: 'site = "cluster-a" (local)', s: 'add', id: 'c-site' },
         { v: 'locality = 1.0', s: 'add', id: 'c-loc' },
         { v: 'strategy = "queueDepth"', s: 'add', id: 'c-strat' },
       ];
       break;
-    case 9:
-      inspStepLabel = '⑨ load_balancer: select local MaaS GW';
-      inspCycle.push({ v: 'target = "maas-gw-a:8080"', s: 'add', id: 'c-target' });
-      break;
     case 10:
-      inspStepLabel = '⑩ Grid GW → MaaS Gateway (local)';
-      const xm = inspHeaders.find(l => l.id === 'h-xmodel');
-      if (xm) xm.s = 'highlight';
+      inspStepLabel = '⑩ load_balancer: select local standalone GW';
+      inspCycle.push({ v: 'target = "standalone-gw-a:8080"', s: 'add', id: 'c-target' });
       break;
     case 11:
-      inspStepLabel = '⑪ Kuadrant: Authorino auth + Limitador rate limit';
+      inspStepLabel = '⑪ Grid GW → Standalone GW → EPP → vLLM';
       break;
     case 12:
-      inspStepLabel = '⑫ MaaS GW processes (API translation, cred injection)';
-      break;
-    case 13:
-      inspStepLabel = '⑬ MaaS GW → llm-d (inference)';
-      break;
-    case 14:
-      inspStepLabel = '⑭ llm-d responds';
+      inspStepLabel = '⑫ llm-d responds';
       setInspPhase('response');
       inspHeaders = [
         { v: 'HTTP/1.1 200 OK', s: 'keep', id: 'r-status' },
@@ -883,16 +872,13 @@ function inspStepLocal(stepNum) {
       ];
       inspCycle = [];
       break;
-    case 15:
-      inspStepLabel = '⑮ Kuadrant: Limitador reports token usage';
+    case 13:
+      inspStepLabel = '⑬ Limitador reports token usage';
       const u = inspBody.find(l => l.id === 'r-usage');
       if (u) u.s = 'highlight';
       break;
-    case 16:
-      inspStepLabel = '⑯ Response → MaaS GW → Grid GW';
-      break;
-    case 17: {
-      inspStepLabel = '⑰ Response → Client (OpenAI format)';
+    case 14: {
+      inspStepLabel = '⑭ Response → Client (OpenAI format)';
       const rc = inspBody.find(l => l.id === 'r-choices');
       if (rc) rc.s = 'highlight';
       break; }
@@ -901,57 +887,45 @@ function inspStepLocal(stepNum) {
 
 function inspStepCross(stepNum) {
   switch (stepNum) {
-    case 1: inspStepLabel = '① Client sends request'; break;
-    case 2: inspStepLabel = '② DNS → Cluster A'; break;
-    case 3: inspStepLabel = '③ Grid Gateway receives request'; break;
+    case 1: inspStepLabel = '① Client sends request to MaaS GW (ingress)'; break;
+    case 2: inspStepLabel = '② DNS → Ingress Cluster A MaaS GW'; break;
+    case 3: inspStepLabel = '③ MaaS GW: Authorino auth + Limitador rate limit'; break;
     case 4:
-      inspStepLabel = '④ api_key_auth → maas-api validate';
+      inspStepLabel = '④ maas-api → Shared DB (key hash lookup)';
       inspHeaders.find(l => l.id === 'h-auth').s = 'highlight';
       break;
     case 5:
-      inspStepLabel = '⑤ maas-api → Shared DB (key hash lookup)';
-      inspHeaders.find(l => l.id === 'h-auth').s = 'highlight';
+      inspStepLabel = '⑤ MaaS GW → Grid GW (routing)';
       break;
     case 6:
-      inspStepLabel = '⑥ maas-api: key valid';
-      inspHeaders.push({ v: 'X-Grid-Username: alice@example.com', s: 'add', id: 'h-user' });
-      inspHeaders.push({ v: 'X-Grid-Region: us-east-1', s: 'add', id: 'h-region' });
-      break;
-    case 7:
-      inspStepLabel = '⑦ model_to_header';
+      inspStepLabel = '⑥ model_to_header: extract model name';
       inspHeaders.push({ v: 'X-Gateway-Model-Name: Llama-4-Scout', s: 'add', id: 'h-xmodel' });
       break;
-    case 8:
-      inspStepLabel = '⑧ intelligent_route: remote site match';
+    case 7:
+      inspStepLabel = '⑦ intelligent_route: no local match → Inference cluster B';
       inspCycle = [
-        { v: 'site = "cluster-b" (REMOTE)', s: 'add', id: 'c-site' },
+        { v: 'site = "cluster-b" (REMOTE INFERENCE)', s: 'add', id: 'c-site' },
         { v: 'locality = 0.5 (remote)', s: 'add', id: 'c-loc' },
         { v: 'reason = "no local match"', s: 'add', id: 'c-reason' },
       ];
       break;
-    case 9:
-      inspStepLabel = '⑨ load_balancer: select Cluster B';
+    case 8:
+      inspStepLabel = '⑧ load_balancer: select Inference cluster B';
       inspCycle.push({ v: 'target = "grid-gw-b:8080" (mTLS)', s: 'add', id: 'c-target' });
       break;
-    case 10:
-      inspStepLabel = '⑩ Grid GW A → Grid GW B (cross-site mTLS)';
+    case 9:
+      inspStepLabel = '⑨ Grid GW A → Grid GW B (cross-site mTLS)';
       const xm = inspHeaders.find(l => l.id === 'h-xmodel');
       if (xm) xm.s = 'highlight';
       break;
+    case 10:
+      inspStepLabel = '⑩ Grid GW B → Standalone GW B';
+      break;
     case 11:
-      inspStepLabel = '⑪ Grid GW B → MaaS Gateway B';
+      inspStepLabel = '⑪ Standalone GW B → EPP → vLLM (inference)';
       break;
     case 12:
-      inspStepLabel = '⑫ Kuadrant B: Authorino auth + Limitador rate limit';
-      break;
-    case 13:
-      inspStepLabel = '⑬ MaaS GW B processes (IPP, cred injection)';
-      break;
-    case 14:
-      inspStepLabel = '⑭ MaaS GW B → llm-d (inference)';
-      break;
-    case 15:
-      inspStepLabel = '⑮ llm-d responds';
+      inspStepLabel = '⑫ llm-d responds';
       setInspPhase('response');
       inspHeaders = [
         { v: 'HTTP/1.1 200 OK', s: 'keep', id: 'r-status' },
@@ -965,19 +939,16 @@ function inspStepCross(stepNum) {
       ];
       inspCycle = [];
       break;
-    case 16:
-      inspStepLabel = '⑯ Kuadrant B: Limitador reports token usage';
+    case 13:
+      inspStepLabel = '⑬ Response → Grid GW B → Grid GW A (mTLS)';
+      break;
+    case 14:
+      inspStepLabel = '⑭ Limitador reports token usage';
       const u = inspBody.find(l => l.id === 'r-usage');
       if (u) u.s = 'highlight';
       break;
-    case 17:
-      inspStepLabel = '⑰ Response → MaaS GW B → Grid GW B';
-      break;
-    case 18:
-      inspStepLabel = '⑱ Response → Grid GW A (cross-site)';
-      break;
-    case 19: {
-      inspStepLabel = '⑲ Response → Client (OpenAI format)';
+    case 15: {
+      inspStepLabel = '⑮ Response → Client (OpenAI format)';
       const rc = inspBody.find(l => l.id === 'r-choices');
       if (rc) rc.s = 'highlight';
       break; }
@@ -986,58 +957,27 @@ function inspStepCross(stepNum) {
 
 function inspStepExt(stepNum) {
   switch (stepNum) {
-    case 1: inspStepLabel = '① Client sends request'; break;
-    case 2: inspStepLabel = '② DNS → Cluster A'; break;
-    case 3: inspStepLabel = '③ Grid Gateway receives request'; break;
+    case 1: inspStepLabel = '① Client sends request to MaaS GW (ingress)'; break;
+    case 2: inspStepLabel = '② DNS → Ingress Cluster A MaaS GW'; break;
+    case 3: inspStepLabel = '③ MaaS GW: Authorino auth + Limitador rate limit'; break;
     case 4:
-      inspStepLabel = '④ api_key_auth → maas-api validate';
+      inspStepLabel = '④ maas-api → Shared DB (key hash lookup)';
       inspHeaders.find(l => l.id === 'h-auth').s = 'highlight';
       break;
     case 5:
-      inspStepLabel = '⑤ maas-api → Shared DB (key hash lookup)';
-      inspHeaders.find(l => l.id === 'h-auth').s = 'highlight';
-      break;
-    case 6:
-      inspStepLabel = '⑥ maas-api: key valid';
-      inspHeaders.push({ v: 'X-Grid-Username: alice@example.com', s: 'add', id: 'h-user' });
-      inspHeaders.push({ v: 'X-Grid-Region: us-east-1', s: 'add', id: 'h-region' });
-      break;
-    case 7:
-      inspStepLabel = '⑦ model_to_header';
-      inspHeaders.push({ v: 'X-Gateway-Model-Name: claude-haiku-4-5', s: 'add', id: 'h-xmodel' });
-      break;
-    case 8:
-      inspStepLabel = '⑧ intelligent_route: ExternalModel match';
-      inspCycle = [
-        { v: 'site = "cluster-a" (local)', s: 'add', id: 'c-site' },
-        { v: 'backend = "ExternalModel"', s: 'add', id: 'c-backend' },
-        { v: 'locality = 0.1 (api_provider)', s: 'add', id: 'c-loc' },
-      ];
-      break;
-    case 9:
-      inspStepLabel = '⑨ load_balancer: select local MaaS GW';
-      inspCycle.push({ v: 'target = "maas-gw-a:8080"', s: 'add', id: 'c-target' });
-      break;
-    case 10:
-      inspStepLabel = '⑩ Grid GW → MaaS Gateway (local)';
-      break;
-    case 11:
-      inspStepLabel = '⑪ Kuadrant: Authorino auth + Limitador rate limit';
-      break;
-    case 12:
-      inspStepLabel = '⑫ MaaS GW: API translation + cred injection';
+      inspStepLabel = '⑤ MaaS GW: API translation + cred injection';
       inspHeaders.find(l => l.id === 'h-path').s = 'del';
       inspHeaders.push({ v: 'POST /v1/messages', s: 'add', id: 'h-path2' });
       inspHeaders.push({ v: 'x-api-key: sk-ant-api03-xxxxx...', s: 'add', id: 'h-xapi' });
       inspHeaders.push({ v: 'anthropic-version: 2023-06-01', s: 'add', id: 'h-aver' });
       break;
-    case 13:
-      inspStepLabel = '⑬ MaaS GW → api.anthropic.com';
+    case 6:
+      inspStepLabel = '⑥ MaaS GW → api.anthropic.com (Grid bypassed)';
       const xapi = inspHeaders.find(l => l.id === 'h-xapi');
       if (xapi) xapi.s = 'highlight';
       break;
-    case 14:
-      inspStepLabel = '⑭ Anthropic responds';
+    case 7:
+      inspStepLabel = '⑦ Anthropic responds';
       setInspPhase('response');
       inspHeaders = [
         { v: 'HTTP/1.1 200 OK', s: 'keep', id: 'r-status' },
@@ -1051,19 +991,16 @@ function inspStepExt(stepNum) {
       ];
       inspCycle = [];
       break;
-    case 15:
-      inspStepLabel = '⑮ MaaS GW: api-translation (Anthropic → OpenAI)';
+    case 8:
+      inspStepLabel = '⑧ MaaS GW: api-translation (Anthropic → OpenAI)';
       break;
-    case 16:
-      inspStepLabel = '⑯ Kuadrant: Limitador reports token usage';
+    case 9:
+      inspStepLabel = '⑨ Limitador reports token usage';
       const u = inspBody.find(l => l.id === 'r-usage');
       if (u) u.s = 'highlight';
       break;
-    case 17:
-      inspStepLabel = '⑰ Response → MaaS GW → Grid GW';
-      break;
-    case 18: {
-      inspStepLabel = '⑱ Response → Client (OpenAI format)';
+    case 10: {
+      inspStepLabel = '⑩ Response → Client (OpenAI format)';
       const rc = inspBody.find(l => l.id === 'r-choices');
       if (rc) rc.s = 'highlight';
       break; }
@@ -1072,11 +1009,11 @@ function inspStepExt(stepNum) {
 
 function inspStepAuth(stepNum) {
   switch (stepNum) {
-    case 1: inspStepLabel = '① Client sends request (invalid key)'; break;
-    case 2: inspStepLabel = '② DNS → Cluster A'; break;
-    case 3: inspStepLabel = '③ Grid Gateway receives request'; break;
+    case 1: inspStepLabel = '① Client sends request (invalid key) to MaaS GW'; break;
+    case 2: inspStepLabel = '② DNS → Ingress Cluster A MaaS GW'; break;
+    case 3: inspStepLabel = '③ MaaS GW receives request'; break;
     case 4:
-      inspStepLabel = '④ api_key_auth → maas-api validate';
+      inspStepLabel = '④ Authorino → maas-api validate';
       inspHeaders.find(l => l.id === 'h-auth').s = 'highlight';
       break;
     case 5:
@@ -1092,7 +1029,7 @@ function inspStepAuth(stepNum) {
       ];
       break;
     case 7:
-      inspStepLabel = '⑦ api_key_auth REJECTS request';
+      inspStepLabel = '⑦ MaaS GW REJECTS request (never reaches Grid)';
       break;
     case 8:
       inspStepLabel = '⑧ 401 Unauthorized → Client';
@@ -1111,86 +1048,71 @@ function inspStepAuth(stepNum) {
 }
 
 // ================================================================
-// FLOW DEFINITIONS
+// FLOW DEFINITIONS — Ingress & Inference cluster topology, MaaS-first
 // ================================================================
 let activeFlow = 'local';
 
 const flowLocal = [
-  { t: '1. Client sends POST /v1/chat/completions', mode: 'arrow', f: 'user', to: 'dns', c: '#58a6ff', num: 1, fromRight: true, toLeft: true },
-  { t: '2. DNS resolves to Cluster A', mode: 'arrow', f: 'dns', to: 'gridgwA', c: '#58a6ff', num: 2, fromBottom: true, toTop: true, toXOff: -50 },
-  { t: '3. Grid Gateway receives request', mode: 'lightup', target: 'gridgwA', badge: 3 },
-  { t: '4. api_key_auth → maas-api validate', mode: 'arrow', f: 'f_auth', to: 'maasapiA', c: '#f0883e', num: 4, glow: 'filterContainer', fromRight: true, toLeft: true, yOff: -5 },
-  { t: '5. maas-api → Shared DB (key hash lookup)', mode: 'arrow', f: 'maasapiA', to: 'shareddb', c: '#39d2c0', num: 5, fromBottom: true, toTop: true, toXOff: -100 },
-  { t: '6. maas-api: key valid (identity + region)', mode: 'arrow', f: 'maasapiA', to: 'f_auth', c: '#f0883e', num: 6, fromLeft: true, toRight: true, yOff: 5 },
-  { t: '7. model_to_header: extract model name', mode: 'lightup', target: 'f_model', badge: 7 },
-  { t: '8. intelligent_route: overlay → local site (1.0)', mode: 'lightup', target: 'f_route', badge: 8 },
-  { t: '9. load_balancer: select local MaaS GW', mode: 'lightup', target: 'f_lb', badge: 9 },
-  { t: '10. Grid GW → MaaS Gateway (local)', mode: 'arrow', f: 'f_lb', to: 'maasgwA', c: '#58a6ff', num: 10, fromBottom: true, toTop: true, toXOff: -150 },
-  { t: '11. Kuadrant: Authorino auth + Limitador rate limit', mode: 'lightup', target: 'kuadrantA', badge: 11 },
-  { t: '12. MaaS GW processes (API translation, cred injection)', mode: 'lightup', target: 'maasgwA', badge: 12 },
-  { t: '13. MaaS GW → llm-d (EPP → vLLM) (inference)', mode: 'arrow', f: 'maasgwA', to: 'eppA', c: '#58a6ff', num: 13, fromBottom: true, toTop: true },
-  { t: '14. llm-d responds', mode: 'arrow', f: 'eppA', to: 'maasgwA', c: '#3fb950', num: 14, fromTop: true, fromXOff: 100, toBottom: true, toXOff: 100 },
-  { t: '15. Kuadrant: Limitador reports token usage', mode: 'lightup', target: 'kuadrantA', badge: 15 },
-  { t: '16. Response → MaaS GW → Grid GW', mode: 'arrow', f: 'maasgwA', to: 'gridgwA', c: '#3fb950', num: 16, fromTop: true, fromXOff: -150, toBottom: true, toXOff: 80, waypoints: [{ x: 155, y: 460 }] },
-  { t: '17. Response → Client', mode: 'arrow', f: 'gridgwA', to: 'user', c: '#3fb950', num: 17, fromLeft: true, toRight: true, yOff: 10 },
+  { t: '1. Client sends request to MaaS GW (ingress)', mode: 'arrow', f: 'user', to: 'dns', c: '#58a6ff', num: 1, fromRight: true, toLeft: true },
+  { t: '2. DNS resolves to Ingress Cluster A MaaS GW', mode: 'arrow', f: 'dns', to: 'maasgwA', c: '#58a6ff', num: 2, fromBottom: true, toTop: true, toXOff: -100 },
+  { t: '3. MaaS GW receives request', mode: 'lightup', target: 'maasgwA', badge: 3 },
+  { t: '4. Authorino: validate API key via maas-api', mode: 'arrow', f: 'kuadrantA', to: 'maasapiA', c: '#f0883e', num: 4, fromRight: true, toLeft: true },
+  { t: '5. maas-api → Shared DB (key hash lookup)', mode: 'arrow', f: 'maasapiA', to: 'shareddb', c: '#39d2c0', num: 5, fromBottom: true, toTop: true },
+  { t: '6. Key valid — Limitador checks token budget', mode: 'lightup', target: 'kuadrantA', badge: 6 },
+  { t: '7. MaaS GW → Grid GW (routing)', mode: 'arrow', f: 'maasgwA', to: 'gridgwA', c: '#58a6ff', num: 7, fromBottom: true, fromXOff: -100, toTop: true },
+  { t: '8. model_to_header: extract model name', mode: 'lightup', target: 'f_model', badge: 8, glow: 'filterContainer' },
+  { t: '9. intelligent_route: overlay → local site (1.0)', mode: 'lightup', target: 'f_route', badge: 9 },
+  { t: '10. load_balancer: select local standalone GW', mode: 'lightup', target: 'f_lb', badge: 10 },
+  { t: '11. Grid GW → Standalone GW → EPP → vLLM', mode: 'arrow', f: 'f_lb', to: 'standalonegwA', c: '#58a6ff', num: 11, fromBottom: true, toTop: true },
+  { t: '12. llm-d responds', mode: 'arrow', f: 'eppA', to: 'standalonegwA', c: '#3fb950', num: 12, fromTop: true, fromXOff: 100, toBottom: true, toXOff: 100 },
+  { t: '13. Limitador reports token usage', mode: 'lightup', target: 'kuadrantA', badge: 13 },
+  { t: '14. Response → Client', mode: 'arrow', f: 'maasgwA', to: 'user', c: '#3fb950', num: 14, fromLeft: true, toRight: true, yOff: 10 },
 ];
 
 const flowCross = [
-  { t: '1. Client sends POST /v1/chat/completions', mode: 'arrow', f: 'user', to: 'dns', c: '#58a6ff', num: 1, fromRight: true, toLeft: true },
-  { t: '2. DNS resolves to Cluster A', mode: 'arrow', f: 'dns', to: 'gridgwA', c: '#58a6ff', num: 2, fromBottom: true, toTop: true, toXOff: -50 },
-  { t: '3. Grid Gateway receives request', mode: 'lightup', target: 'gridgwA', badge: 3 },
-  { t: '4. api_key_auth → maas-api validate', mode: 'arrow', f: 'f_auth', to: 'maasapiA', c: '#f0883e', num: 4, glow: 'filterContainer', fromRight: true, toLeft: true, yOff: -5 },
-  { t: '5. maas-api → Shared DB (key hash lookup)', mode: 'arrow', f: 'maasapiA', to: 'shareddb', c: '#39d2c0', num: 5, fromBottom: true, toTop: true, toXOff: -100 },
-  { t: '6. maas-api: key valid', mode: 'arrow', f: 'maasapiA', to: 'f_auth', c: '#f0883e', num: 6, fromLeft: true, toRight: true, yOff: 5 },
-  { t: '7. model_to_header: extract model name', mode: 'lightup', target: 'f_model', badge: 7 },
-  { t: '8. intelligent_route: no local match → remote site B', mode: 'lightup', target: 'f_route', badge: 8 },
-  { t: '9. load_balancer: select Cluster B', mode: 'lightup', target: 'f_lb', badge: 9 },
-  { t: '10. Grid GW A → Grid GW B (cross-site mTLS)', mode: 'arrow', f: 'gridgwA', to: 'gridgwB', c: '#d29922', num: 10, fromRight: true, toLeft: true },
-  { t: '11. Grid GW B → MaaS Gateway B', mode: 'arrow', f: 'gridgwB', to: 'maasgwB', c: '#58a6ff', num: 11, fromBottom: true, toTop: true },
-  { t: '12. Kuadrant B: Authorino auth + Limitador rate limit', mode: 'lightup', target: 'kuadrantB', badge: 12 },
-  { t: '13. MaaS GW B processes (IPP, cred injection)', mode: 'lightup', target: 'maasgwB', badge: 13 },
-  { t: '14. MaaS GW B → llm-d (EPP → vLLM) B (inference)', mode: 'arrow', f: 'maasgwB', to: 'eppB', c: '#58a6ff', num: 14, fromBottom: true, toTop: true },
-  { t: '15. llm-d responds', mode: 'arrow', f: 'eppB', to: 'maasgwB', c: '#3fb950', num: 15, fromTop: true, fromXOff: 100, toBottom: true, toXOff: 100 },
-  { t: '16. Kuadrant B: Limitador reports token usage', mode: 'lightup', target: 'kuadrantB', badge: 16 },
-  { t: '17. Response → MaaS GW B → Grid GW B', mode: 'arrow', f: 'maasgwB', to: 'gridgwB', c: '#3fb950', num: 17, fromTop: true, toBottom: true },
-  { t: '18. Response → Grid GW A (cross-site)', mode: 'arrow', f: 'gridgwB', to: 'gridgwA', c: '#3fb950', num: 18, fromLeft: true, toRight: true, yOff: 10 },
-  { t: '19. Response → Client', mode: 'arrow', f: 'gridgwA', to: 'user', c: '#3fb950', num: 19, fromLeft: true, toRight: true, yOff: 10 },
+  { t: '1. Client sends request to MaaS GW (ingress)', mode: 'arrow', f: 'user', to: 'dns', c: '#58a6ff', num: 1, fromRight: true, toLeft: true },
+  { t: '2. DNS resolves to Ingress Cluster A MaaS GW', mode: 'arrow', f: 'dns', to: 'maasgwA', c: '#58a6ff', num: 2, fromBottom: true, toTop: true, toXOff: -100 },
+  { t: '3. MaaS GW: Authorino auth + Limitador rate limit', mode: 'lightup', target: 'maasgwA', badge: 3 },
+  { t: '4. maas-api → Shared DB (key hash lookup)', mode: 'arrow', f: 'maasapiA', to: 'shareddb', c: '#39d2c0', num: 4, fromBottom: true, toTop: true },
+  { t: '5. MaaS GW → Grid GW (routing)', mode: 'arrow', f: 'maasgwA', to: 'gridgwA', c: '#58a6ff', num: 5, fromBottom: true, fromXOff: -100, toTop: true },
+  { t: '6. model_to_header: extract model name', mode: 'lightup', target: 'f_model', badge: 6, glow: 'filterContainer' },
+  { t: '7. intelligent_route: no local match → Inference cluster B', mode: 'lightup', target: 'f_route', badge: 7 },
+  { t: '8. load_balancer: select Inference cluster B', mode: 'lightup', target: 'f_lb', badge: 8 },
+  { t: '9. Grid GW A → Grid GW B (cross-site mTLS)', mode: 'arrow', f: 'gridgwA', to: 'gridgwB', c: '#d29922', num: 9, fromRight: true, toLeft: true },
+  { t: '10. Grid GW B → Standalone GW B', mode: 'arrow', f: 'gridgwB', to: 'standalonegwB', c: '#58a6ff', num: 10, fromBottom: true, toTop: true },
+  { t: '11. Standalone GW B → EPP → vLLM (inference)', mode: 'arrow', f: 'standalonegwB', to: 'eppB', c: '#58a6ff', num: 11, fromBottom: true, toTop: true },
+  { t: '12. llm-d responds', mode: 'arrow', f: 'eppB', to: 'standalonegwB', c: '#3fb950', num: 12, fromTop: true, fromXOff: 100, toBottom: true, toXOff: 100 },
+  { t: '13. Response → Grid GW B → Grid GW A (mTLS)', mode: 'arrow', f: 'gridgwB', to: 'gridgwA', c: '#3fb950', num: 13, fromLeft: true, toRight: true, yOff: 10 },
+  { t: '14. Limitador reports token usage', mode: 'lightup', target: 'kuadrantA', badge: 14 },
+  { t: '15. Response → Client', mode: 'arrow', f: 'maasgwA', to: 'user', c: '#3fb950', num: 15, fromLeft: true, toRight: true, yOff: 10 },
 ];
 
 const flowExt = [
-  { t: '1. Client sends POST /v1/chat/completions', mode: 'arrow', f: 'user', to: 'dns', c: '#58a6ff', num: 1, fromRight: true, toLeft: true },
-  { t: '2. DNS resolves to Cluster A', mode: 'arrow', f: 'dns', to: 'gridgwA', c: '#58a6ff', num: 2, fromBottom: true, toTop: true, toXOff: -50 },
-  { t: '3. Grid Gateway receives request', mode: 'lightup', target: 'gridgwA', badge: 3 },
-  { t: '4. api_key_auth → maas-api validate', mode: 'arrow', f: 'f_auth', to: 'maasapiA', c: '#f0883e', num: 4, glow: 'filterContainer', fromRight: true, toLeft: true, yOff: -5 },
-  { t: '5. maas-api → Shared DB (key hash lookup)', mode: 'arrow', f: 'maasapiA', to: 'shareddb', c: '#39d2c0', num: 5, fromBottom: true, toTop: true, toXOff: -100 },
-  { t: '6. maas-api: key valid', mode: 'arrow', f: 'maasapiA', to: 'f_auth', c: '#f0883e', num: 6, fromLeft: true, toRight: true, yOff: 5 },
-  { t: '7. model_to_header: extract model name', mode: 'lightup', target: 'f_model', badge: 7 },
-  { t: '8. intelligent_route: ExternalModel match', mode: 'lightup', target: 'f_route', badge: 8 },
-  { t: '9. load_balancer: select local MaaS GW', mode: 'lightup', target: 'f_lb', badge: 9 },
-  { t: '10. Grid GW → MaaS Gateway (local)', mode: 'arrow', f: 'f_lb', to: 'maasgwA', c: '#58a6ff', num: 10, fromBottom: true, toTop: true, toXOff: -150 },
-  { t: '11. Kuadrant: Authorino auth + Limitador rate limit', mode: 'lightup', target: 'kuadrantA', badge: 11 },
-  { t: '12. MaaS GW: API translation + cred injection', mode: 'lightup', target: 'maasgwA', badge: 12 },
-  { t: '13. MaaS GW → external API (api.anthropic.com)', mode: 'arrow', f: 'maasgwA', to: 'extA', c: '#58a6ff', num: 13, fromBottom: true, fromXOff: -100, toTop: true, toXOff: -100 },
-  { t: '14. Anthropic responds', mode: 'arrow', f: 'extA', to: 'maasgwA', c: '#3fb950', num: 14, fromTop: true, fromXOff: 100, toBottom: true, toXOff: 100 },
-  { t: '15. MaaS GW: api-translation (Anthropic → OpenAI)', mode: 'lightup', target: 'maasgwA', badge: 15 },
-  { t: '16. Kuadrant: Limitador reports token usage', mode: 'lightup', target: 'kuadrantA', badge: 16 },
-  { t: '17. Response → MaaS GW → Grid GW', mode: 'arrow', f: 'maasgwA', to: 'gridgwA', c: '#3fb950', num: 17, fromTop: true, fromXOff: -150, toBottom: true, toXOff: 80, waypoints: [{ x: 155, y: 460 }] },
-  { t: '18. Response → Client (OpenAI format)', mode: 'arrow', f: 'gridgwA', to: 'user', c: '#3fb950', num: 18, fromLeft: true, toRight: true, yOff: 10 },
+  { t: '1. Client sends request to MaaS GW (ingress)', mode: 'arrow', f: 'user', to: 'dns', c: '#58a6ff', num: 1, fromRight: true, toLeft: true },
+  { t: '2. DNS resolves to Ingress Cluster A MaaS GW', mode: 'arrow', f: 'dns', to: 'maasgwA', c: '#58a6ff', num: 2, fromBottom: true, toTop: true, toXOff: -100 },
+  { t: '3. MaaS GW: Authorino auth + Limitador rate limit', mode: 'lightup', target: 'maasgwA', badge: 3 },
+  { t: '4. maas-api → Shared DB (key hash lookup)', mode: 'arrow', f: 'maasapiA', to: 'shareddb', c: '#39d2c0', num: 4, fromBottom: true, toTop: true },
+  { t: '5. MaaS GW: API translation + cred injection', mode: 'lightup', target: 'maasgwA', badge: 5 },
+  { t: '6. MaaS GW → external API (Grid bypassed)', mode: 'arrow', f: 'maasgwA', to: 'extA', c: '#58a6ff', num: 6, fromBottom: true, fromXOff: -100, toTop: true, toXOff: -100 },
+  { t: '7. Anthropic responds', mode: 'arrow', f: 'extA', to: 'maasgwA', c: '#3fb950', num: 7, fromTop: true, fromXOff: 100, toBottom: true, toXOff: 100 },
+  { t: '8. MaaS GW: api-translation (Anthropic → OpenAI)', mode: 'lightup', target: 'maasgwA', badge: 8 },
+  { t: '9. Limitador reports token usage', mode: 'lightup', target: 'kuadrantA', badge: 9 },
+  { t: '10. Response → Client (OpenAI format)', mode: 'arrow', f: 'maasgwA', to: 'user', c: '#3fb950', num: 10, fromLeft: true, toRight: true, yOff: 10 },
 ];
 
 const flowAuth = [
-  { t: '1. Client sends POST /v1/chat/completions (invalid key)', mode: 'arrow', f: 'user', to: 'dns', c: '#58a6ff', num: 1, fromRight: true, toLeft: true },
-  { t: '2. DNS resolves to Cluster A', mode: 'arrow', f: 'dns', to: 'gridgwA', c: '#58a6ff', num: 2, fromBottom: true, toTop: true, toXOff: -50 },
-  { t: '3. Grid Gateway receives request', mode: 'lightup', target: 'gridgwA', badge: 3 },
-  { t: '4. api_key_auth → maas-api validate', mode: 'arrow', f: 'f_auth', to: 'maasapiA', c: '#f0883e', num: 4, glow: 'filterContainer', fromRight: true, toLeft: true, yOff: -5 },
-  { t: '5. maas-api → Shared DB (key hash lookup)', mode: 'arrow', f: 'maasapiA', to: 'shareddb', c: '#39d2c0', num: 5, fromBottom: true, toTop: true, toXOff: -100 },
-  { t: '6. maas-api: key INVALID', mode: 'arrow', f: 'maasapiA', to: 'f_auth', c: '#f85149', num: 6, fromLeft: true, toRight: true, yOff: 5 },
-  { t: '7. api_key_auth REJECTS request', mode: 'lightup', target: 'f_auth', badge: '✗', errColor: '#f85149' },
-  { t: '8. 401 Unauthorized → Client', mode: 'arrow', f: 'gridgwA', to: 'user', c: '#f85149', num: 8, fromLeft: true, toRight: true, yOff: 10 },
+  { t: '1. Client sends request (invalid key) to MaaS GW', mode: 'arrow', f: 'user', to: 'dns', c: '#58a6ff', num: 1, fromRight: true, toLeft: true },
+  { t: '2. DNS resolves to Ingress Cluster A MaaS GW', mode: 'arrow', f: 'dns', to: 'maasgwA', c: '#58a6ff', num: 2, fromBottom: true, toTop: true, toXOff: -100 },
+  { t: '3. MaaS GW receives request', mode: 'lightup', target: 'maasgwA', badge: 3 },
+  { t: '4. Authorino → maas-api validate', mode: 'arrow', f: 'kuadrantA', to: 'maasapiA', c: '#f0883e', num: 4, fromRight: true, toLeft: true },
+  { t: '5. maas-api → Shared DB (key hash lookup)', mode: 'arrow', f: 'maasapiA', to: 'shareddb', c: '#39d2c0', num: 5, fromBottom: true, toTop: true },
+  { t: '6. maas-api: key INVALID', mode: 'arrow', f: 'maasapiA', to: 'kuadrantA', c: '#f85149', num: 6, fromLeft: true, toRight: true },
+  { t: '7. MaaS GW REJECTS (never reaches Grid GW)', mode: 'lightup', target: 'maasgwA', badge: '✗', errColor: '#f85149' },
+  { t: '8. 401 Unauthorized → Client', mode: 'arrow', f: 'maasgwA', to: 'user', c: '#f85149', num: 8, fromLeft: true, toRight: true, yOff: 10 },
 ];
 
 const flowMap = { local: flowLocal, cross: flowCross, ext: flowExt, auth: flowAuth };
-const flowLabels = { local: 'Local Routing (on-cluster)', cross: 'Cross-site Routing (remote)', ext: 'External Model (via MaaS)', auth: 'Auth Failure (401)' };
+const flowLabels = { local: 'Local Routing (ingress cluster)', cross: 'Cross-site Routing (ingress → inference)', ext: 'External Model (direct, Grid bypassed)', auth: 'Auth Failure (401)' };
 const flowOrder = ['local', 'cross', 'ext', 'auth'];
 let flow = flowLocal;
 
@@ -1327,6 +1249,7 @@ function execStep() {
     } else {
       badges[s.target] = s.badge;
     }
+    if (s.glow) glowing.add(s.glow);
     el.className = 'step done';
     currentStepDone = si + 1;
     saveSnapshot(si);
@@ -1367,6 +1290,7 @@ function simulateUpTo(targetStep) {
     } else if (s.mode === 'lightup') {
       activeNodes.add(s.target);
       if (s.errColor) N[s.target]._origColor = N[s.target]._origColor || N[s.target].color, N[s.target].color = s.errColor;
+      if (s.glow) glowing.add(s.glow);
       if (badges[s.target] != null) {
         const existing = Array.isArray(badges[s.target]) ? badges[s.target] : [badges[s.target]];
         existing.push(s.badge);
@@ -1440,13 +1364,12 @@ setTimeout(() => { toggleLoop(); }, 500);
   const boxes=[
     {x:.15,y:.12,label:'Client',color:'#58a6ff'},
     {x:.5,y:.08,label:'DNS',color:'#58a6ff'},
-    {x:.2,y:.35,label:'Grid GW',color:'#d29922'},
-    {x:.8,y:.35,label:'Grid GW',color:'#d29922'},
-    {x:.2,y:.55,label:'MaaS',color:'#8957e5'},
-    {x:.8,y:.55,label:'MaaS',color:'#8957e5'},
-    {x:.2,y:.75,label:'llm-d',color:'#39d2c0'},
-    {x:.8,y:.75,label:'llm-d',color:'#39d2c0'},
-    {x:.5,y:.92,label:'PostgreSQL',color:'#39d2c0'},
+    {x:.2,y:.3,label:'MaaS GW',color:'#8957e5'},
+    {x:.2,y:.5,label:'Grid GW',color:'#d29922'},
+    {x:.8,y:.3,label:'Grid GW',color:'#d29922'},
+    {x:.2,y:.7,label:'llm-d',color:'#39d2c0'},
+    {x:.8,y:.5,label:'llm-d',color:'#39d2c0'},
+    {x:.4,y:.92,label:'PostgreSQL',color:'#39d2c0'},
   ];
   let particles=[];
   function spawn(){

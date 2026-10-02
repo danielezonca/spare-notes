@@ -21,83 +21,91 @@ across the Grid and MaaS layers.
 These are fundamentally different auth models. The v3 demo sidesteps
 MaaS auth entirely.
 
-### Decision: API key auth at both layers
+### Decision: API key auth at MaaS layer only
 
-**Grid Gateway** uses `api_key_auth` → maas-api (same as today's dogfood).
-**MaaS Gateway** uses Authorino (Kuadrant) for subscription-level authorization.
-
-Both layers are in the request path:
+**MaaS Gateway** (on ingress clusters) handles all authentication and
+authorization via Authorino (Kuadrant). **Grid Gateway** does routing
+only — no `api_key_auth`, no identity resolution.
 
 ```
 Consumer
   │  Bearer sk-oai-abc123...
   ▼
-Grid Gateway
-  ├── api_key_auth → POST /internal/v1/api-keys/validate → maas-api
-  │   Returns: username, groups, region, token_budget
-  │   Sets: AuthenticatedIdentity (subject_id = username)
-  │         X-Grid-Region header (from tenant config)
-  │
-  ├── intelligent_route
-  │   Reads X-Grid-Region → matches against candidate labels
-  │   Selects target site
-  │
-  └── load_balancer → forwards to target site's MaaS Gateway
-        │
-        ▼
-MaaS Gateway
+MaaS Gateway (Ingress cluster)
   ├── Authorino (Kuadrant)
-  │   Validates API key again (MaaSAuthPolicy enforcement)
+  │   Validates API key via maas-api
   │   Resolves subscription → selected_subscription_key
+  │   Returns: username, groups
   │
   ├── Limitador (Kuadrant)
   │   Token rate limit per user/subscription/model
   │
   ├── Credential injection
-  │   Injects provider API key (e.g., ANTHROPIC_API_KEY)
+  │   For llm-d models: injects Grid service token (or passthrough)
+  │   For external APIs: injects provider API key (e.g., ANTHROPIC_API_KEY)
   │
-  └── Routes to backend (EPP → vLLM or ExternalModel → external API)
+  └── Routes to Grid GW (for llm-d models) or external API directly
+        │
+        ▼
+Grid Gateway (same ingress cluster, routing only)
+  ├── model_to_header
+  │   Extracts model name from body → X-Gateway-Model-Name
+  │
+  ├── intelligent_route
+  │   Reads overlay candidates, selects target site
+  │
+  └── load_balancer → forwards to target standalone GW
+        (local cluster or remote via mTLS)
 ```
 
-### Auth happens twice — by design
+### Auth happens once — at MaaS
 
-| Concern | Grid Gateway (api_key_auth) | MaaS Gateway (Authorino) |
-|---------|---------------------------|--------------------------|
-| **What it checks** | Is the key valid? Who is this user? | Does this user's subscription allow this model? |
-| **What it returns** | Identity + region + budget | Subscription key for rate limiting |
-| **Scope** | Grid-level routing decisions | Site-level access policy |
-| **Could be skipped?** | No — needed for routing | Potentially, if Grid passes trusted identity headers |
+| Concern | MaaS Gateway (Authorino) | Grid Gateway |
+|---------|--------------------------|-------------|
+| **What it checks** | Is the key valid? Does this user's subscription allow this model? | Is the request from a trusted service? (SA token validation) |
+| **What it returns** | Subscription key for rate limiting, identity for metering | N/A — forwards to target |
+| **Scope** | User authentication, authorization, rate limiting, metering | Service-level auth + cross-cluster routing |
+| **Auth mechanism** | Kuadrant (Authorino + Limitador) | K8s ServiceAccount tokens (same-cluster), Grid mTLS (cross-cluster) |
 
-**Future optimization**: Grid Gateway could pass a signed identity
-header that MaaS Gateway trusts, skipping the second maas-api call.
-Not needed for MVP — the overhead is small (maas-api is in-cluster).
+Grid GW authenticates requests at the service level, not the user
+level. No user API key validation — MaaS handles that upstream.
+
+- **Same cluster** (MaaS GW → Grid GW, Grid GW → llm-d GW):
+  ServiceAccount token validation. The sender pod mounts a projected
+  SA token; the receiver validates via K8s TokenReview.
+- **Cross-cluster** (Grid GW → Grid GW): mTLS between Grid GWs at
+  different sites (existing Grid certificate infrastructure).
 
 ### Filter chain: Grid Gateway (MVP)
 
 ```yaml
 filter_chains:
-  - name: grid
+  - name: grid-route
     filters:
-      - filter: api_key_auth         # → maas-api validate
       - filter: model_to_header      # body → X-Gateway-Model-Name
-      - filter: intelligent_route    # overlay candidates, X-Grid-Region
-        local_site: hub
-        match_claims:
-          - { claim_header: X-Grid-Region, label: region }
-      - filter: load_balancer        # → selected site's MaaS Gateway
+      - filter: intelligent_route    # overlay candidates, site selection
+        local_site: <this-site>
+      - filter: load_balancer        # → selected target standalone GW
 ```
 
-Note: `token_rate_limit` is **not** in the Grid Gateway chain for MVP.
-Rate limiting is MaaS-only.
+No `api_key_auth` — MaaS GW handles all auth upstream.
+No `token_rate_limit` — MaaS handles limits via Limitador.
+No `match_claims` on `X-Grid-Region` — geo fencing is deferred to
+Phase 2, driven by MaaS GW headers when tenant region metadata is
+available via Authorino CRD configuration.
 
-### Filter chain: MaaS Gateway (existing, unchanged)
+### Filter chain: MaaS Gateway (entry point)
 
-The MaaS Gateway runs its existing Kuadrant-based pipeline. The
-Grid Gateway's request arrives as a proxied HTTP request with the
-original API key still in the Authorization header. Authorino
-validates it independently.
+The MaaS Gateway runs its existing Kuadrant-based pipeline as the
+customer entry point on ingress clusters. It validates the API key,
+enforces rate limits, injects credentials, and forwards to Grid GW
+(for llm-d models) or directly to external APIs.
 
 ### maas-api validation response: current vs extended
+
+The primary consumer of the extended response is MaaS GW itself
+(for geo fencing once enabled in Phase 2). Grid GW does not call
+maas-api — it does routing only.
 
 **Current response** (from `/internal/v1/api-keys/validate`):
 ```json
@@ -110,7 +118,7 @@ validates it independently.
 }
 ```
 
-**Extended response** (to build):
+**Extended response** (Phase 2):
 ```json
 {
   "valid": true,
@@ -127,39 +135,33 @@ validates it independently.
 }
 ```
 
-New fields:
-- `region` — from `AITenant.spec.region` or `MaasTenantConfig`
+New fields (Phase 2):
+- `region` — from `AITenant.spec.region` or `MaasTenantConfig`.
+  Consumed by MaaS GW to set `X-Grid-Region` header before
+  forwarding to Grid GW.
 - `tokenBudget` — from `MaaSSubscription.tokenRateLimits` for the
-  matched subscription
+  matched subscription. Consumed by MaaS GW for budget visibility.
 
 ### AuthenticatedIdentity bridge
 
-The `api_key_auth` filter must populate the Praxis `AuthenticatedIdentity`
-extension so downstream filters can read it:
+Grid GW does not need the Praxis `AuthenticatedIdentity` extension.
+It does routing only — no identity, roles, or claims are required.
+The `intelligent_route` filter selects candidates based on model
+name and overlay scoring, not identity-based filtering.
 
-```
-AuthenticatedIdentity {
-  subject_id: "alice@example.com"     // from validation response
-  roles: {"team-a", "platform"}       // from groups
-  custom_claims: {
-    "region": "us-east-1",            // from extended response
-    "subscription": "team-a-sub"
-  }
-}
-```
-
-The `token_rate_limit` filter (when enabled post-MVP) reads
-`subject_id` for per-user bucketing. The `intelligent_route` filter
-reads the region from a header set by `api_key_auth`.
+**Post-MVP**: If Grid-level `token_rate_limit` is enabled, the
+identity bridge becomes relevant. At that point, MaaS GW
+would pass identity via a trusted header (e.g., signed
+`X-Authenticated-Subject`) that Grid GW reads into
+`AuthenticatedIdentity` for per-user bucketing.
 
 ---
 
 ## Management Layer Auth: Admin vs User
 
-The data plane auth (api_key_auth → maas-api) handles inference
-requests. But the management plane — model listing, key creation,
-usage queries — also needs auth. The two personas have different
-requirements:
+The data plane auth handles inference requests. But the management
+plane — model listing, key creation, usage queries — also needs auth.
+The two personas have different requirements:
 
 | | Tenant Admin | Tenant User |
 |--|-------------|-------------|
@@ -220,24 +222,27 @@ access without a browser, users use their API key.
 ### MVP: MaaS only
 
 ```
-Consumer → Grid Gateway (NO rate limiting) → MaaS Gateway → Limitador checks budget
-                                                           → if OK: inference
-                                                           → if over: HTTP 429
+Consumer → MaaS Gateway → Limitador checks budget
+                         → if OK: forward to Grid GW → routing → inference
+                         → if over: HTTP 429 (never reaches Grid GW)
 ```
 
 - `token_rate_limit` disabled at Grid Gateway
-- Kuadrant/Limitador enforces per-user, per-model limits at each site
+- Kuadrant/Limitador enforces per-user, per-model limits at MaaS GW
+  (ingress clusters)
+- Rate-limited requests never reach Grid — reduces unnecessary
+  cross-cluster traffic
 - No cross-site budget enforcement (deferred)
 - Config driven by `MaaSSubscription.tokenRateLimits` CRD
 
 ### Post-MVP: Complementary layers
 
 ```
-Consumer → Grid Gateway → token_rate_limit (global per-subject budget, Valkey)
-                        → if over global: HTTP 429
-                        → MaaS Gateway → Limitador (per-model budget)
-                                       → if over model budget: HTTP 429
-                                       → inference
+Consumer → MaaS Gateway → Limitador (per-model budget)
+                         → if over model budget: HTTP 429
+                         → Grid Gateway → token_rate_limit (global per-subject budget, Valkey)
+                                        → if over global: HTTP 429
+                                        → routing → inference
 ```
 
 Two non-overlapping scopes:

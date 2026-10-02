@@ -7,50 +7,63 @@ Extracted from design-notes.md decisions.
 
 ## maas-api
 
+**Approach**: Prefer existing maas-api APIs and CRD-based data flow.
+Minor code changes are acceptable when they simplify integration
+logic compared to working around the existing API surface.
+
+The `external model` reconciler creates `MaaSModelRef` CRs on each
+ingress cluster for every model in the Grid mesh. maas-api's existing
+K8s informer watches `MaaSModelRef` CRs locally, so `GET /v1/models`
+returns all models (local + remote) without changes. API key
+validation uses the existing `/internal/v1/api-keys/validate`
+endpoint.
+
 | Gap | Description | Phase | Effort |
 |-----|------------|-------|--------|
-| **Extend validation response** | `POST /internal/v1/api-keys/validate` must return `region` (from AITenant/MaasTenantConfig) and `token_budget` (from MaaSSubscription.tokenRateLimits) alongside existing username/groups. Grid Gateway needs these for geo fencing and budget enforcement. | Phase 2 | Medium |
-| **Composite model lister** | New `MaaSModelRefLister` implementation that reads the Grid overlay file (local ConfigMap maintained by overlay-sync sidecar) and merges with the existing K8s informer. Deduplicates by model name. Returns models from all Grid sites, not just local cluster. | Phase 1 | Medium |
-| **Overlay ConfigMap mount** | maas-api pod needs the Grid overlay ConfigMap mounted (same volume mount the Grid Gateway already uses). Deployment/Helm change only. | Phase 1 | Small |
-| **Region in tenant config** | `AITenant` or `MaasTenantConfig` CRD needs a `region` field (or equivalent). maas-api reads this during validation to return the tenant's geo region. Requires CRD schema change + controller update. | Phase 2 | Medium |
+| **Geo fencing metadata** | When geo fencing is needed, MaaS GW must obtain the tenant's region. Options: (a) extend maas-api validation response to include `region` from `AITenant.spec.region` (simplest — small code change), (b) Authorino reads the region from CRD metadata directly. Evaluate during Phase 2 based on which path is simpler. | Phase 2 | Medium |
 
 ## Praxis AI (ai repo)
 
 | Gap | Description | Phase | Effort |
 |-----|------------|-------|--------|
-| **api_key_auth → AuthenticatedIdentity bridge** | The `api_key_auth` filter must populate the `AuthenticatedIdentity` extension (subject_id, roles, custom_claims) from maas-api's validation response. Today the `policy` filter (PPE) does this from JWT claims. Need the same for API keys so downstream filters (`intelligent_route`, `token_rate_limit`) work. | Phase 1 | Medium |
-| **intelligent_route: header-based region** | `intelligent_route` currently reads `grid_region` from JWT claims via `match_claims`. Needs to also accept a header-based region source (e.g., `X-Grid-Region` set by `api_key_auth`). Alternative: a new filter that maps validation response fields → headers before `intelligent_route`. | Phase 2 | Medium |
-| **Grid Gateway filter chain config** | Define the combined filter chain for the Grid Gateway role: `api_key_auth → model_to_header → intelligent_route → load_balancer` (no `token_rate_limit` for MVP). Needs a documented config template / Helm values. | Phase 1 | Small |
+| **intelligent_route: header-based region** | `intelligent_route` currently reads `grid_region` from JWT claims via `match_claims`. Needs to also accept a header-based region source (e.g., `X-Grid-Region` set by MaaS GW from the maas-api validation response). | Phase 2 | Medium |
+| **Grid Gateway filter chain config** | Define the filter chain for the Grid Gateway routing-only role: `model_to_header → intelligent_route → load_balancer`. No `api_key_auth` (MaaS handles auth). No `token_rate_limit` for MVP. Needs a documented config template / Helm values. | Phase 1 | Small |
 | **Kuadrant + Praxis integration** | MaaS currently uses Kuadrant (Authorino + Limitador) with Envoy/Istio. With Praxis as the MaaS gateway engine (AITenant annotation `payload-processing-type=praxis`), verify Kuadrant integration works: Authorino for auth policies, Limitador for token rate limits. May need adapter or configuration work. | Phase 1 | Medium |
 
 ## Grid Operator (grid repo)
 
 | Gap | Description | Phase | Effort |
 |-----|------------|-------|--------|
-| **MaaS → Grid reconciler** | New controller (could live in grid repo or as a standalone operator) that watches `MaaSModelRef` CRs and auto-creates corresponding `InferenceProvider` CRs. Maps MaaSModelRef fields (model name, backend kind, endpoint) to InferenceProvider spec. Ensures models deployed via MaaS become grid-routable without manual Grid CRD management. | Phase 2 | Large |
+| **`ai grid` reconciler** | New controller in Grid Operator (Rust). Watches llm-d Gateway CRDs with opt-in annotation (`grid.praxis-proxy.io/managed: "true"`) in namespaces matching a configurable filter. Creates `InferenceProvider` CRs with `backendKind: "local"`, mapping model names and standalone GW endpoint from the llm-d deployment. Updates on spec changes; deletes when annotation is removed or Gateway is deleted. Runs on every cluster hosting llm-d models (ingress or inference). | Phase 1 | Large |
+| **`external model` reconciler** | New controller in Grid Operator (Rust). Watches `InferenceProvider` CRs (which reflect the full mesh state via SWIM gossip). Creates `ExternalModel` + `MaaSModelRef` CRs in the MaaS API group (`maas.opendatahub.io/v1alpha1`). One `ExternalModel` per distinct model name — deduplicates across providers on multiple sites. ExternalModel endpoint = local Grid GW K8s service FQDN. Does NOT create `MaaSSubscription` or `MaaSAuthPolicy` (admin concerns, managed via ACM/GitOps). Runs on ingress clusters only (guarded by feature flag or CRD presence check). | Phase 1 | Large |
+| **Namespace filter for llm-d discovery** | New field on `GridNetwork` spec (or new CRD) to configure which namespaces and annotation key/value the `ai grid` reconciler watches. E.g., `llmdDiscovery.namespaces`, `llmdDiscovery.annotation`. | Phase 1 | Small |
 
-## maas-api — Management Layer Auth
+## Management Layer Auth
 
 | Gap | Description | Phase | Effort |
 |-----|------------|-------|--------|
-| **Tenant user auth without OpenShift** | Today maas-api auth supports OpenShift tokens (TokenReview) and API keys. Tenant admins have OpenShift accounts — fine. But tenant users are external engineers (8K+) who may NOT have OpenShift accounts. They need to access self-service endpoints (GET /v1/models, POST /v1/api-keys, GET /v1/subscriptions) without requiring an OpenShift login. Options: (a) API key auth for management endpoints (key authenticates itself), (b) SSO/OIDC integration (corporate IdP, not OpenShift), (c) ephemeral token from portal login. Need to design the auth flow for the Tenant User UI → maas-api path. | Phase 1 | Medium |
+| **Tenant user auth without OpenShift** | Tenant users are external engineers (8K+) who may not have OpenShift accounts. They need to access maas-api self-service endpoints (GET /v1/models, POST /v1/api-keys, GET /v1/subscriptions) without OpenShift login. Options: (a) add SSO/OIDC token validation to maas-api (minor code change — accept corporate IdP tokens alongside existing OpenShift tokens), (b) OAuth2 proxy in front of maas-api that translates OIDC tokens to OpenShift-compatible headers (infrastructure-only), (c) API key auth for management endpoints (maas-api already supports this — key authenticates itself). | Phase 1 | Medium |
 
 ## MaaS Controller (maas-controller)
 
 | Gap | Description | Phase | Effort |
 |-----|------------|-------|--------|
-| **Region field in CRD** | `AITenant` or `MaasTenantConfig` needs `spec.region` (or `spec.gridRegion`). Controller must propagate this to maas-api's runtime config so validation responses include it. | Phase 2 | Small |
+| **Region field in CRD** | `AITenant` or `MaasTenantConfig` needs `spec.region` (or `spec.gridRegion`). Used by Authorino (via Kuadrant metadata source) for geo fencing decisions at the MaaS GW level. CRD schema change + controller update to propagate the field. | Phase 2 | Small |
 
 ## Deployment / Helm / Infrastructure
 
 | Gap | Description | Phase | Effort |
 |-----|------------|-------|--------|
-| **Shared DB setup** | All clusters must connect to the same PostgreSQL instance. Connection string in maas-api config. Requires network connectivity (VPC peering, private endpoints) between clusters and DB. | Phase 1 | Medium |
-| **Grid Operator installation** | Install Grid Operator + Grid Gateway on each cluster via Helm charts (already exist in grid repo: `grid-operator`, `grid-site`, `praxis-gateway`). SWIM seed configuration for the hub. | Phase 1 | Medium |
+| **Ingress/Inference topology deployment** | Define cluster roles via Helm values, cluster labels, or ACM placement rules. Ingress clusters run MaaS GW + maas-api + maas-controller + `external model` reconciler. Inference clusters run Grid GW + standalone GW + llm-d + `ai grid` reconciler only. A single cluster can serve both roles — there is no hard requirement to separate them. When a cluster is both ingress and inference, it runs the full stack (MaaS GW + Grid GW + standalone GW + llm-d + both reconcilers). | Phase 1 | Medium |
+| **Standalone GW deployment** | Each cluster hosting llm-d models (ingress or inference) needs a standalone Gateway separate from MaaS GW and Grid GW. llm-d models attach to this gateway, not to MaaS GW. Helm chart or kustomize overlay for the standalone GW. | Phase 1 | Medium |
+| **Inter-service auth (MaaS GW → Grid GW → llm-d GW)** | Authentication between the gateway layers. MaaS GW → Grid GW and Grid GW → standalone llm-d GW must authenticate requests — not with user API keys, but with service-level credentials. Options: (a) Kubernetes ServiceAccount tokens (projected SA token validated by the receiving gateway), (b) mTLS with service mesh certificates, (c) static shared secret. SA tokens (option a) are the recommended approach: no manual secret management, integrates with K8s RBAC, and the ExternalModel `credentialRef` can reference the projected token. Cross-cluster Grid GW → Grid GW traffic is already authenticated via Grid mTLS. | Phase 1 | Medium |
+| **Shared DB setup** | Ingress clusters must connect to the same PostgreSQL instance (inference clusters do not — they have no maas-api). Connection string in maas-api config. Requires network connectivity (VPC peering, private endpoints) between ingress clusters and DB. | Phase 1 | Medium |
+| **Grid Operator installation** | Install Grid Operator + Grid Gateway on each cluster via Helm charts (already exist in grid repo: `grid-operator`, `grid-site`, `praxis-gateway`). SWIM seed configuration for the ingress cluster. | Phase 1 | Medium |
 | **Site enrollment** | Each site needs a one-time enrollment token to join the Grid mesh. Manual for dogfood, automate for scale. | Phase 1 | Small |
-| **overlay-sync sidecar** | Deploy overlay-sync sidecar alongside maas-api (not just Grid Gateway) so it can read the overlay for model listing. | Phase 1 | Small |
-| **ACM / GitOps pipeline** | Configure ACM to distribute MaaS CRDs (`MaaSModelRef`, `ExternalModel`, `MaaSSubscription`, `MaaSAuthPolicy`) and Grid CRDs to target clusters. This connects management-plane model declarations to the multi-cluster deployment. | Phase 1 | Medium |
+| **ACM / GitOps pipeline** | Configure ACM to distribute admin-managed MaaS CRDs (`MaaSSubscription`, `MaaSAuthPolicy`, `AITenant`, `MaasTenantConfig`) across ingress clusters. `ExternalModel` and `MaaSModelRef` CRs are NOT distributed by ACM — they are auto-created independently on each ingress cluster by the `external model` reconciler (each ingress cluster sees the full mesh via SWIM gossip). Grid CRDs (`InferenceProvider`) are auto-created by the `ai grid` reconciler on each cluster, not distributed by ACM. | Phase 1 | Medium |
 | **Thanos / Grafana** | Configure ACM Multi-cluster Observability to aggregate Prometheus metrics from all clusters. Provide dashboards for Grid routing decisions, token usage, latency, capacity, and cost across the integrated deployment. | Phase 1 | Medium |
+| **Single-cluster → multi-cluster migration plan** | No smooth transition from single-cluster MaaS to ingress & inference topology. Models must be redeployed on standalone GWs (currently attached to MaaS GW via `LLMInferenceService`). MaaS GW routing must be reconfigured. Requires a planned maintenance window or parallel-run migration. See [deployment-scenarios.md](deployment-scenarios.md). | Phase 1 | Medium |
+| **Admin UI: opt-in annotation** | Existing RHCE Admin UI can deploy standalone `LLMInferenceService` on any Gateway. Verify whether the UI can set the opt-in annotation (`grid.praxis-proxy.io/managed: "true"`) on the llm-d Gateway. If yes, the existing deployment flow works with the reconciler chain — no UI changes needed. If not, a minor UI update or a platform-level default annotation is needed. See [deployment-scenarios.md](deployment-scenarios.md). | Phase 1 | Small |
 
 ## Future Grid-dependent product requirements
 
@@ -70,23 +83,29 @@ and [`../pricetag/`](../pricetag/).
 
 ## Summary by Phase
 
-### Phase 1 (Grid alongside MaaS)
-- Grid Operator + Gateway installation on all clusters
+### Phase 1 (Ingress & Inference deployment)
+- **Topology**: Define cluster roles (Helm values, ACM placement). A single cluster can be both ingress and inference — no hard separation required
+- **Ingress clusters**: MaaS GW + maas-api + Grid GW (routing only) + Grid Operator
+- **Inference clusters**: standalone GW + llm-d + Grid GW + Grid Operator (can be disconnected from internet — only inter-cluster connectivity required)
+- **`ai grid` reconciler**: llm-d → InferenceProvider (Grid Operator, Rust)
+- **`external model` reconciler**: InferenceProvider → ExternalModel + MaaSModelRef on ingress clusters (Grid Operator, Rust)
+- **Namespace filter**: GridNetwork spec extension for llm-d discovery
+- **Standalone GW deployment**: Helm chart / kustomize for llm-d-attached gateway
+- **Inter-service auth**: SA tokens for MaaS GW → Grid GW and Grid GW → llm-d GW; Grid mTLS for cross-cluster
+- Grid Operator + Grid GW installation on all clusters
 - Site enrollment
-- Shared DB connectivity
-- ACM/GitOps pipeline for MaaS and Grid CRD distribution
-- maas-api: overlay mount + composite model lister
-- Praxis AI: Grid Gateway filter chain config + AuthenticatedIdentity bridge
-- overlay-sync sidecar for maas-api
+- Shared DB connectivity (ingress clusters only)
+- ACM/GitOps pipeline for admin-managed MaaS CRD distribution across ingress clusters
+- maas-api: prefer existing APIs; minor changes acceptable to simplify integration
+- Praxis AI: Grid GW filter chain (`model_to_header → intelligent_route → load_balancer`)
 - Thanos/Grafana observability across the integrated deployment
-- Tenant user auth without OpenShift (management layer)
+- Tenant user auth without OpenShift
 - Kuadrant + Praxis integration verification
 
 ### Phase 2 (enhanced integration)
-- maas-api: extended validation response (region, budget)
 - MaaS CRD: region field in AITenant/MaasTenantConfig
-- Praxis AI: header-based region in intelligent_route
-- MaaS → Grid auto-reconciler
+- Geo fencing: Authorino reads tenant region from CRD, sets header for Grid GW intelligent_route
+- Praxis AI: header-based region in intelligent_route (source: MaaS GW headers)
 
 ### Post-MVP
 - Grid `token_rate_limit` with Valkey

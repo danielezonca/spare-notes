@@ -197,7 +197,7 @@ const N = {
   dnsGw:      { x: 360, y: 55, w: 220, h: 34, label: 'ai-gateway.example.com', sublabel: 'inference', color: '#58a6ff', fs: 12 },
 
   // Cluster A
-  clusterA: { x: 60, y: 110, w: 580, h: 780, type: 'boundary', label: 'CLUSTER A · us-east-1 · hub (DNS)', labelAlign: 'left' },
+  clusterA: { x: 60, y: 110, w: 580, h: 780, type: 'boundary', label: 'CLUSTER A · us-east-1 · ingress', labelAlign: 'left' },
 
   userUI:   { x: 90, y: 145, w: 280, h: 55, label: 'RHOAI Customer Portal', sublabel: 'Standalone RHOAI Dashboard', color: '#d29922', fs: 14 },
   maasapi:  { x: 90, y: 225, w: 240, h: 55, label: 'maas-api', sublabel: 'Models · Keys · Subscriptions', color: '#8957e5', fs: 15 },
@@ -380,7 +380,7 @@ function drawBounds() {
   ctx.textAlign = 'left';
   ctx.fillText(ca.label, tx(ca.x + 12), ty(ca.y + 18));
   ctx.textAlign = 'right'; ctx.fillStyle = '#3fb95088';
-  ctx.fillText('hub (DNS)', tx(ca.x + ca.w - 12), ty(ca.y + 18));
+  ctx.fillText('ingress', tx(ca.x + ca.w - 12), ty(ca.y + 18));
 
   // Cluster B
   const cb = N.clusterB;

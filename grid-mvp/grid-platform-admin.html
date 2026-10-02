@@ -47,10 +47,10 @@ svg{width:100%;height:auto;display:block}
 <path d="M190,71 L190,86" fill="none" stroke="#d29922" stroke-width="1.2" marker-end="url(#ah-amber)"/>
 
 <!-- ═══════════════════════════════════════════
-     HUB CLUSTER A — Management
+     INGRESS CLUSTER A — Management
      ═══════════════════════════════════════════ -->
 <rect x="40" y="130" width="520" height="520" rx="10" fill="#161b22" fill-opacity="0.3" stroke="#3fb950" stroke-width="2" stroke-dasharray="8,4"/>
-<text x="56" y="148" fill="#3fb950" font-size="9" font-weight="600">CLUSTER A · us-east-1 · HUB (DNS)</text>
+<text x="56" y="148" fill="#3fb950" font-size="9" font-weight="600">CLUSTER A · us-east-1 · INGRESS CLUSTER</text>
 <text x="500" y="148" text-anchor="end" fill="#3fb950" font-size="7">management + inference</text>
 
 <!-- Platform Admin UI -->
@@ -79,8 +79,8 @@ svg{width:100%;height:auto;display:block}
 
 <text x="315" y="198" fill="#3fb950" font-size="8" font-weight="600">●</text>
 <text x="330" y="198" fill="#e6edf3" font-size="8" font-weight="600">Deploy model</text>
-<text x="315" y="211" fill="#6e7681" font-size="7">  LLMInferenceService + MaaSModelRef</text>
-<text x="315" y="222" fill="#6e7681" font-size="7">  or ExternalModel + MaaSModelRef</text>
+<text x="315" y="211" fill="#6e7681" font-size="7">  llm-d deployment + opt-in annotation</text>
+<text x="315" y="222" fill="#6e7681" font-size="7">  auto: InferenceProvider → ExternalModel → MaaSModelRef</text>
 
 <text x="315" y="240" fill="#58a6ff" font-size="8" font-weight="600">●</text>
 <text x="330" y="240" fill="#e6edf3" font-size="8" font-weight="600">Onboard tenant</text>
@@ -128,18 +128,21 @@ svg{width:100%;height:auto;display:block}
 <text x="148" y="356" fill="#3fb950" font-size="6">push CRDs</text>
 
 <!-- ═══════════════════════════════════════════
-     MaaS → Grid reconciler (on hub)
+     MaaS → Grid reconciler (on ingress cluster)
      ═══════════════════════════════════════════ -->
-<rect x="300" y="380" width="245" height="50" rx="6" fill="#2a1f0d" stroke="#d29922" stroke-width="1" stroke-dasharray="4,3" filter="url(#sh)"/>
-<text x="422" y="398" text-anchor="middle" fill="#d29922" font-size="8" font-weight="600">MAAS → GRID RECONCILER (to build)</text>
-<text x="422" y="414" text-anchor="middle" fill="#8b949e" font-size="8">Watches MaaSModelRef → auto-creates</text>
-<text x="422" y="424" text-anchor="middle" fill="#8b949e" font-size="8">InferenceProvider CRs for Grid routing</text>
+<rect x="300" y="375" width="245" height="30" rx="6" fill="#2a1f0d" stroke="#d29922" stroke-width="1" stroke-dasharray="4,3" filter="url(#sh)"/>
+<text x="422" y="390" text-anchor="middle" fill="#d29922" font-size="7" font-weight="600">AI GRID RECONCILER (Phase 1)</text>
+<text x="422" y="400" text-anchor="middle" fill="#8b949e" font-size="7">llm-d (opt-in annotation) → InferenceProvider CRs</text>
+
+<rect x="300" y="412" width="245" height="30" rx="6" fill="#2a1f0d" stroke="#d29922" stroke-width="1" stroke-dasharray="4,3" filter="url(#sh)"/>
+<text x="422" y="427" text-anchor="middle" fill="#d29922" font-size="7" font-weight="600">EXTERNAL MODEL RECONCILER (Phase 1)</text>
+<text x="422" y="437" text-anchor="middle" fill="#8b949e" font-size="7">InferenceProvider → ExternalModel + MaaSModelRef (ingress clusters only)</text>
 
 <!-- CRDs → reconciler -->
 <path d="M285,410 L296,405" fill="none" stroke="#d29922" stroke-width="1" stroke-dasharray="3,3" marker-end="url(#ah-amber)"/>
 
 <!-- ═══════════════════════════════════════════
-     Grid Operator + Overlay (on hub)
+     Grid Operator + Overlay (on ingress cluster)
      ═══════════════════════════════════════════ -->
 <rect x="300" y="445" width="245" height="50" rx="6" fill="#1c1340" stroke="#8957e5" stroke-width="1.2" filter="url(#sh)"/>
 <text x="422" y="462" text-anchor="middle" fill="#8957e5" font-size="8" font-weight="600">GRID OPERATOR</text>
@@ -149,7 +152,7 @@ svg{width:100%;height:auto;display:block}
 <!-- reconciler → Grid Operator -->
 <path d="M422,430 L422,441" fill="none" stroke="#d29922" stroke-width="1" stroke-dasharray="3,3" marker-end="url(#ah-amber)"/>
 
-<!-- Kuadrant + maas-controller (hub) -->
+<!-- Kuadrant + maas-controller (ingress) -->
 <rect x="65" y="470" width="100" height="38" rx="5" fill="#2a1a0a" stroke="#f0883e" stroke-width="1" filter="url(#sh)"/>
 <text x="115" y="486" text-anchor="middle" fill="#f0883e" font-size="7" font-weight="600">KUADRANT</text>
 <text x="115" y="498" text-anchor="middle" fill="#e6edf3" font-size="7">Limitador · Authorino</text>
@@ -163,7 +166,7 @@ svg{width:100%;height:auto;display:block}
 <ellipse cx="92" cy="542" rx="10" ry="4" fill="none" stroke="#39d2c0" stroke-width="1"/>
 <path d="M82,542 L82,554 Q82,558 92,558 Q102,558 102,554 L102,542" fill="none" stroke="#39d2c0" stroke-width="1"/>
 <text x="330" y="542" text-anchor="middle" fill="#39d2c0" font-size="8" font-weight="600">SHARED DB · PostgreSQL</text>
-<text x="330" y="558" text-anchor="middle" fill="#8b949e" font-size="7">API keys · Subscriptions · Quotas · All clusters connect</text>
+<text x="330" y="558" text-anchor="middle" fill="#8b949e" font-size="7">API keys · Subscriptions · Ingress clusters only — inference clusters not connected</text>
 
 <!-- Mgmt API → DB (for quota/usage) -->
 <path d="M100,275 L90,521" fill="none" stroke="#39d2c0" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#ah-teal)" opacity="0.4"/>
@@ -182,15 +185,15 @@ svg{width:100%;height:auto;display:block}
      CLUSTER B — peer
      ═══════════════════════════════════════════ -->
 <rect x="620" y="130" width="380" height="340" rx="10" fill="#161b22" fill-opacity="0.3" stroke="#30363d" stroke-width="2" stroke-dasharray="8,4"/>
-<text x="636" y="148" fill="#8b949e" font-size="9" font-weight="600">CLUSTER B · eu-west-1</text>
-<text x="940" y="148" text-anchor="end" fill="#6e7681" font-size="7">same stack, peer</text>
+<text x="636" y="148" fill="#8b949e" font-size="9" font-weight="600">CLUSTER B · eu-west-1 · INGRESS CLUSTER</text>
+<text x="940" y="148" text-anchor="end" fill="#3fb950" font-size="7">ingress peer</text>
 
 <!-- CRDs pushed to B -->
 <rect x="645" y="162" width="330" height="70" rx="6" fill="#1c1340" stroke="#8957e5" stroke-width="1.2" filter="url(#sh)"/>
 <text x="810" y="180" text-anchor="middle" fill="#8957e5" font-size="8" font-weight="600">MAAS CRDs (pushed by ACM)</text>
 <text x="660" y="198" fill="#e6edf3" font-size="8">MaaSModelRef · ExternalModel</text>
 <text x="660" y="212" fill="#e6edf3" font-size="8">MaaSSubscription · MaaSAuthPolicy</text>
-<text x="660" y="224" fill="#6e7681" font-size="7">Same CRDs as hub — ACM distributes</text>
+<text x="660" y="224" fill="#6e7681" font-size="7">Same CRDs as ingress cluster — ACM distributes</text>
 
 <!-- ACM → Cluster B CRDs -->
 <path d="M285,318 Q500,180 641,190" fill="none" stroke="#3fb950" stroke-width="1.5" marker-end="url(#ah-green)"/>
@@ -201,10 +204,10 @@ svg{width:100%;height:auto;display:block}
 <text x="722" y="264" text-anchor="middle" fill="#8957e5" font-size="7" font-weight="600">MAAS CONTROLLER</text>
 <text x="722" y="278" text-anchor="middle" fill="#e6edf3" font-size="8">CRD reconciliation</text>
 
-<!-- MaaS → Grid reconciler B -->
+<!-- Reconcilers B -->
 <rect x="820" y="248" width="155" height="38" rx="5" fill="#2a1f0d" stroke="#d29922" stroke-width="1" stroke-dasharray="4,3" filter="url(#sh)"/>
-<text x="897" y="264" text-anchor="middle" fill="#d29922" font-size="7" font-weight="600">MAAS → GRID RECONCILER</text>
-<text x="897" y="278" text-anchor="middle" fill="#6e7681" font-size="7">auto-creates InferenceProvider</text>
+<text x="897" y="264" text-anchor="middle" fill="#d29922" font-size="7" font-weight="600">RECONCILERS</text>
+<text x="897" y="278" text-anchor="middle" fill="#6e7681" font-size="7">ai grid + external model</text>
 
 <!-- Grid Operator B -->
 <rect x="645" y="302" width="330" height="40" rx="6" fill="#1c1340" stroke="#8957e5" stroke-width="1.2" filter="url(#sh)"/>
@@ -223,38 +226,37 @@ svg{width:100%;height:auto;display:block}
 
 <!-- Grid GW + MaaS GW B (compact) -->
 <rect x="645" y="408" width="330" height="38" rx="6" fill="#2a1f0d" stroke="#d29922" stroke-width="1" filter="url(#sh)"/>
-<text x="810" y="424" text-anchor="middle" fill="#d29922" font-size="8" font-weight="600">GRID GATEWAY + MAAS GATEWAY</text>
-<text x="810" y="438" text-anchor="middle" fill="#6e7681" font-size="7">Praxis AI · Auth · Rate limit · Routing · Cred injection</text>
+<text x="810" y="424" text-anchor="middle" fill="#d29922" font-size="8" font-weight="600">MAAS GW + GRID GW (routing only)</text>
+<text x="810" y="438" text-anchor="middle" fill="#6e7681" font-size="7">Praxis AI · MaaS-first: auth → rate limit → routing</text>
 
 <!-- DB connection from B -->
 <path d="M722,286 Q600,490 540,545" fill="none" stroke="#39d2c0" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#ah-teal)" opacity="0.3"/>
 
 <!-- ═══════════════════════════════════════════
-     CLUSTER C — peer (compact)
+     CLUSTER C — INFERENCE (inference only)
      ═══════════════════════════════════════════ -->
-<rect x="620" y="490" width="380" height="145" rx="10" fill="#161b22" fill-opacity="0.3" stroke="#30363d" stroke-width="2" stroke-dasharray="8,4"/>
-<text x="636" y="508" fill="#8b949e" font-size="9" font-weight="600">CLUSTER C · eu-west-2</text>
-<text x="940" y="508" text-anchor="end" fill="#6e7681" font-size="7">same stack, peer</text>
+<rect x="620" y="490" width="380" height="145" rx="10" fill="#161b22" fill-opacity="0.3" stroke="#f0883e" stroke-width="2" stroke-dasharray="8,4"/>
+<text x="636" y="508" fill="#f0883e" font-size="9" font-weight="600">CLUSTER C · eu-west-2 · INFERENCE CLUSTER</text>
+<text x="940" y="508" text-anchor="end" fill="#f0883e" font-size="7">inference only · air-gapped OK</text>
 
-<!-- CRDs C -->
-<rect x="645" y="520" width="330" height="35" rx="6" fill="#1c1340" stroke="#8957e5" stroke-width="1" filter="url(#sh)"/>
-<text x="810" y="536" text-anchor="middle" fill="#8957e5" font-size="8" font-weight="600">MAAS CRDs (pushed by ACM)</text>
-<text x="810" y="548" text-anchor="middle" fill="#6e7681" font-size="7">Same CRDs · maas-controller · MaaS → Grid reconciler</text>
+<!-- Inference cluster components -->
+<rect x="645" y="520" width="155" height="38" rx="5" fill="#1c1340" stroke="#8957e5" stroke-width="1" filter="url(#sh)"/>
+<text x="722" y="534" text-anchor="middle" fill="#8957e5" font-size="7" font-weight="600">GRID OPERATOR</text>
+<text x="722" y="548" text-anchor="middle" fill="#6e7681" font-size="7">SWIM · Signals · Overlay</text>
 
-<!-- ACM → Cluster C -->
-<path d="M285,330 Q500,440 641,530" fill="none" stroke="#3fb950" stroke-width="1.5" marker-end="url(#ah-green)"/>
+<rect x="820" y="520" width="155" height="38" rx="5" fill="#2a1f0d" stroke="#d29922" stroke-width="1" stroke-dasharray="4,3" filter="url(#sh)"/>
+<text x="897" y="534" text-anchor="middle" fill="#d29922" font-size="7" font-weight="600">AI GRID RECONCILER</text>
+<text x="897" y="548" text-anchor="middle" fill="#6e7681" font-size="7">llm-d → InferenceProvider</text>
 
-<!-- Full stack C -->
-<rect x="645" y="570" width="155" height="38" rx="5" fill="#1c1340" stroke="#8957e5" stroke-width="1" filter="url(#sh)"/>
-<text x="722" y="584" text-anchor="middle" fill="#8957e5" font-size="7" font-weight="600">GRID OPERATOR + KUADRANT</text>
-<text x="722" y="598" text-anchor="middle" fill="#6e7681" font-size="7">SWIM · Limitador · Authorino</text>
+<rect x="645" y="570" width="155" height="38" rx="5" fill="#2a1f0d" stroke="#d29922" stroke-width="1" filter="url(#sh)"/>
+<text x="722" y="584" text-anchor="middle" fill="#d29922" font-size="7" font-weight="600">STANDALONE GW + GRID GW</text>
+<text x="722" y="598" text-anchor="middle" fill="#6e7681" font-size="7">Praxis AI · routing only</text>
 
 <rect x="820" y="570" width="155" height="38" rx="5" fill="#0d2626" stroke="#39d2c0" stroke-width="1" filter="url(#sh)"/>
 <text x="897" y="584" text-anchor="middle" fill="#39d2c0" font-size="7" font-weight="600">INFERENCE</text>
 <text x="897" y="598" text-anchor="middle" fill="#e6edf3" font-size="7">EPP → vLLM · Llama-4-Scout</text>
 
-<!-- DB connection from C -->
-<path d="M645,590 Q580,570 540,555" fill="none" stroke="#39d2c0" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#ah-teal)" opacity="0.3"/>
+<text x="810" y="626" text-anchor="middle" fill="#f0883e" font-size="7" font-style="italic">No MaaS GW · No maas-api · No shared DB</text>
 
 <!-- ═══════════════════════════════════════════
      SWIM gossip between operators
@@ -269,28 +271,30 @@ svg{width:100%;height:auto;display:block}
 <rect x="1040" y="130" width="330" height="230" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1"/>
 <text x="1205" y="150" text-anchor="middle" fill="#e6edf3" font-size="10" font-weight="600">Model Deployment Flow</text>
 
-<text x="1055" y="174" fill="#d29922" font-size="9" font-weight="600">1</text>
-<text x="1072" y="174" fill="#8b949e" font-size="8">Admin opens Admin UI → selects "deploy model"</text>
+<text x="1055" y="172" fill="#d29922" font-size="9" font-weight="600">1</text>
+<text x="1072" y="172" fill="#8b949e" font-size="8">Admin deploys llm-d on target cluster</text>
+<text x="1072" y="184" fill="#6e7681" font-size="7">with opt-in annotation: grid.praxis-proxy.io/managed: "true"</text>
 
-<text x="1055" y="196" fill="#8957e5" font-size="9" font-weight="600">2</text>
-<text x="1072" y="196" fill="#8b949e" font-size="8">Management API generates MaaS CRDs:</text>
-<text x="1072" y="210" fill="#6e7681" font-size="7">ExternalModel or LLMInferenceService + MaaSModelRef</text>
-<text x="1072" y="222" fill="#6e7681" font-size="7">MaaSSubscription (rate limits) + MaaSAuthPolicy (access)</text>
+<text x="1055" y="202" fill="#d29922" font-size="9" font-weight="600">2</text>
+<text x="1072" y="202" fill="#8b949e" font-size="8">ai grid reconciler creates InferenceProvider CR</text>
 
-<text x="1055" y="244" fill="#3fb950" font-size="9" font-weight="600">3</text>
-<text x="1072" y="244" fill="#8b949e" font-size="8">ACM/GitOps pushes CRDs to target clusters</text>
+<text x="1055" y="222" fill="#8957e5" font-size="9" font-weight="600">3</text>
+<text x="1072" y="222" fill="#8b949e" font-size="8">Grid Operator gossips model to all peers (SWIM)</text>
 
-<text x="1055" y="266" fill="#8957e5" font-size="9" font-weight="600">4</text>
-<text x="1072" y="266" fill="#8b949e" font-size="8">maas-controller reconciles on each cluster:</text>
-<text x="1072" y="280" fill="#6e7681" font-size="7">→ Kuadrant AuthPolicy + TokenRateLimitPolicy</text>
-<text x="1072" y="292" fill="#6e7681" font-size="7">→ Model transitions to Ready (governance paired)</text>
+<text x="1055" y="242" fill="#d29922" font-size="9" font-weight="600">4</text>
+<text x="1072" y="242" fill="#8b949e" font-size="8">external model reconciler (ingress clusters only):</text>
+<text x="1072" y="254" fill="#6e7681" font-size="7">→ ExternalModel + MaaSModelRef (one per distinct model)</text>
 
-<text x="1055" y="314" fill="#d29922" font-size="9" font-weight="600">5</text>
-<text x="1072" y="314" fill="#8b949e" font-size="8">MaaS → Grid reconciler creates InferenceProvider</text>
-<text x="1072" y="328" fill="#6e7681" font-size="7">→ Grid Operator gossips model to all peers</text>
-<text x="1072" y="340" fill="#6e7681" font-size="7">→ Model routable across the entire Grid</text>
+<text x="1055" y="274" fill="#3fb950" font-size="9" font-weight="600">5</text>
+<text x="1072" y="274" fill="#8b949e" font-size="8">ACM/GitOps distributes MaaSSubscription +</text>
+<text x="1072" y="286" fill="#6e7681" font-size="7">MaaSAuthPolicy to ingress clusters</text>
 
-<text x="1055" y="356" fill="#6e7681" font-size="8">Admin deploys once → available everywhere</text>
+<text x="1055" y="306" fill="#8957e5" font-size="9" font-weight="600">6</text>
+<text x="1072" y="306" fill="#8b949e" font-size="8">maas-controller reconciles → model Ready</text>
+<text x="1072" y="318" fill="#6e7681" font-size="7">→ Kuadrant AuthPolicy + TokenRateLimitPolicy</text>
+<text x="1072" y="330" fill="#6e7681" font-size="7">→ Model routable across the entire Grid</text>
+
+<text x="1055" y="350" fill="#6e7681" font-size="8">Deploy once → routable everywhere via reconcilers</text>
 
 <!-- ═══════════════════════════════════════════
      WHAT ADMIN MANAGES — summary
@@ -326,7 +330,7 @@ svg{width:100%;height:auto;display:block}
 <text x="1072" y="596" fill="#8b949e" font-size="8">Deploy once → routable across all sites (SWIM)</text>
 
 <text x="1055" y="612" fill="#3fb950" font-size="8" font-weight="600">✓</text>
-<text x="1072" y="612" fill="#8b949e" font-size="8">All clusters identical — admin UI on any cluster</text>
+<text x="1072" y="612" fill="#8b949e" font-size="8">Ingress/inference — admin tools on ingress cluster, inference on any cluster</text>
 
 <text x="1055" y="628" fill="#3fb950" font-size="8" font-weight="600">✓</text>
 <text x="1072" y="628" fill="#8b949e" font-size="8">CRD-driven — GitOps auditable, reproducible</text>
@@ -348,12 +352,15 @@ svg{width:100%;height:auto;display:block}
   <text x="558" y="12" fill="#8b949e" font-size="8">Database</text>
   <line x1="620" y1="8" x2="643" y2="8" stroke="#f0883e" stroke-width="1.5"/>
   <text x="648" y="12" fill="#8b949e" font-size="8">Kuadrant / Observability</text>
-  <rect x="780" y="2" width="50" height="14" rx="3" fill="#161b22" stroke="#3fb950" stroke-width="1.5" stroke-dasharray="6,4"/>
-  <text x="805" y="12" text-anchor="middle" fill="#3fb950" font-size="7" font-weight="600">HUB</text>
-  <text x="840" y="12" fill="#8b949e" font-size="8">DNS designation</text>
-  <rect x="940" y="2" width="70" height="14" rx="3" fill="#2a1f0d" stroke="#d29922" stroke-width="0.8" stroke-dasharray="3,3"/>
-  <text x="975" y="12" text-anchor="middle" fill="#d29922" font-size="7" font-weight="600">TO BUILD</text>
-  <text x="1020" y="12" fill="#8b949e" font-size="8">Planned feature</text>
+  <rect x="720" y="2" width="50" height="14" rx="3" fill="#161b22" stroke="#3fb950" stroke-width="1.5" stroke-dasharray="6,4"/>
+  <text x="745" y="12" text-anchor="middle" fill="#3fb950" font-size="7" font-weight="600">INGRESS</text>
+  <text x="780" y="12" fill="#8b949e" font-size="8">MaaS + Grid</text>
+  <rect x="840" y="2" width="55" height="14" rx="3" fill="#161b22" stroke="#f0883e" stroke-width="1.5" stroke-dasharray="6,4"/>
+  <text x="867" y="12" text-anchor="middle" fill="#f0883e" font-size="7" font-weight="600">INFERENCE</text>
+  <text x="905" y="12" fill="#8b949e" font-size="8">Grid + inference</text>
+  <rect x="990" y="2" width="70" height="14" rx="3" fill="#2a1f0d" stroke="#d29922" stroke-width="0.8" stroke-dasharray="3,3"/>
+  <text x="1025" y="12" text-anchor="middle" fill="#d29922" font-size="7" font-weight="600">PHASE 1</text>
+  <text x="1070" y="12" fill="#8b949e" font-size="8">Reconcilers</text>
 </g>
 
 </svg>

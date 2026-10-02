@@ -7,25 +7,63 @@ for the multi-cluster Grid deployment.
 
 ## Architecture Overview
 
-The AI Grid is a two-plane system:
+The AI Grid is a two-plane system deployed across **Region Ingress
+Clusters** and **Inference clusters**:
 
-- **Control plane**: Grid Operators at each site, connected via SWIM gossip
-  (membership, liveness) and signals polling (load metrics). Operators
-  reconcile CRDs and generate a routing overlay ConfigMap.
-- **Data plane**: Grid Gateways at each site, consuming the overlay to make
-  model-based, geo-aware, cost-aware routing decisions. MaaS Gateways
-  (Praxis AI) handle site-local model routing, credential injection, and
-  forwarding to EPP → vLLM.
+- **Control plane**: Grid Operators at each site (ingress and inference),
+  connected via SWIM gossip (membership, liveness) and signals
+  polling (load metrics). Operators reconcile CRDs and generate a
+  routing overlay ConfigMap. The `ai grid` reconciler watches
+  opted-in llm-d deployments and creates `InferenceProvider` CRs.
+  The `external model` reconciler (ingress clusters only) creates
+  `ExternalModel` + `MaaSModelRef` CRs in MaaS from InferenceProvider
+  state.
+- **Data plane**: MaaS Gateways on ingress clusters are the customer
+  entry point — they handle API key auth, rate limiting, metering,
+  and credential injection. Grid Gateways on all sites handle
+  routing + service-level auth (SA tokens, no user API key auth) — consuming the overlay to make model-based,
+  geo-aware, cost-aware routing decisions and forwarding to local or
+  remote standalone gateways serving llm-d backends.
 
-### Components per site
+### Cluster topology
+
+Ingress clusters run MaaS Gateway + maas-api in addition to the shared
+Grid stack. Inference clusters run inference workloads only and can
+be disconnected from the public internet — only private network
+connectivity to other clusters is required (for SWIM gossip, signals
+polling, and data-plane mTLS). A single cluster can serve both roles
+— there is no hard requirement to separate them. When both roles are
+on one cluster, it runs the full stack. The distinction is about MaaS
+presence, not model placement.
+
+### Components — Ingress cluster
 
 | Component | Role |
 |-----------|------|
-| Grid Gateway | Consumer entry point. API key auth, geo fencing, site selection |
-| Grid Operator | SWIM gossip, metrics polling, overlay generation |
-| MaaS Gateway (Praxis AI) | Model routing, credential injection, API translation |
-| EPP | Endpoint picker — selects a pod within a pool |
-| vLLM | Inference backend |
+| MaaS Gateway (Praxis AI) | Customer entry point. API key auth, rate limiting, metering, credential injection |
+| maas-api | API key validation, model listing, subscription management |
+| maas-controller | CRD reconciliation (ExternalModel, MaaSModelRef, MaaSSubscription, etc.) |
+| Grid Gateway (Praxis AI) | Routing only. model_to_header → intelligent_route → load_balancer. No auth |
+| Grid Operator | SWIM gossip, metrics polling/scraping, overlay generation |
+| `ai grid` reconciler | Watches opted-in llm-d deployments, creates InferenceProvider CRs (if hosting models) |
+| `external model` reconciler | Creates ExternalModel + MaaSModelRef CRs from InferenceProvider state |
+| Standalone Gateway | Serves llm-d models (optional — only if ingress cluster hosts models) |
+| EPP + vLLM | Inference backend (optional — only if ingress cluster hosts models) |
+
+### Components — Inference cluster
+
+| Component | Role |
+|-----------|------|
+| Standalone Gateway | Serves llm-d models |
+| EPP + vLLM | Inference backend |
+| Grid Gateway (Praxis AI) | Receives cross-cluster traffic from ingress cluster Grid GW, routes to local standalone GW |
+| Grid Operator | SWIM gossip, metrics polling/scraping, overlay generation |
+| `ai grid` reconciler | Watches opted-in llm-d deployments, creates InferenceProvider CRs |
+
+Inference clusters do NOT run MaaS Gateway, maas-api, maas-controller,
+or the `external model` reconciler. They may be air-gapped from
+the public internet but must maintain private network connectivity
+to other clusters.
 
 ### Inter-site connections
 
@@ -35,74 +73,87 @@ The AI Grid is a two-plane system:
 
 ---
 
-## Decision: External providers — Grid level vs MaaS level
+## Decision: Unified ExternalModel abstraction
 
-**Context**: External API providers (Anthropic, OpenAI, OpenRouter) can be
-configured at two layers:
+**Context**: MaaS Gateway is the customer entry point (auth, rate
+limiting, metering). Grid Gateway handles routing only. All models
+must be visible through MaaS regardless of where they run.
 
-1. **Grid level** — `InferenceProvider` CRD with `backendKind: api_provider`.
-   Grid-wide visibility, cost-aware scoring, locality score 0.1 (always
-   lowest priority fallback). No metrics scraping.
-2. **MaaS level** — Praxis AI gateway cluster config with credential
-   injection. Site-local only, no Grid visibility or scoring.
+**Decision**: ALL models (llm-d internal + third-party) are registered
+as `ExternalModel` CRs in MaaS. One `ExternalModel` per distinct model
+name.
 
-**Decision**: MaaS level only for MVP. Grid level deferred to post-MVP.
+**How it works**:
+
+1. **llm-d models**: The `ai grid` reconciler watches opted-in llm-d
+   deployments and creates `InferenceProvider` CRs. The `external
+   model` reconciler (ingress clusters only) creates `ExternalModel` CRs
+   pointing to the local Grid GW endpoint
+   (`grid-gw.grid-system.svc.cluster.local`). MaaS GW forwards to
+   Grid GW, which routes to the right standalone GW (local or remote).
+
+2. **Third-party APIs** (Anthropic, OpenAI, OpenRouter): Registered
+   as `ExternalModel` CRs with the actual API endpoint (e.g.,
+   `api.openai.com`). MaaS GW routes directly — Grid is bypassed
+   because there is no cross-cluster routing decision to make.
 
 **Rationale**:
-- Rate limiting is at the MaaS level for the MVP (Kuadrant/Limitador).
-  All traffic must flow through the MaaS Gateway to be rate-limited.
-  If external models were at the Grid level, the Grid Gateway would
-  route directly to the external API, bypassing MaaS — **no rate
-  limiting** (Limitador is at MaaS level).
-- Existing MaaS deployments already route to external providers at
-  the site level via `ExternalModel` CR. This works today.
-- The Grid's role in the MVP is cross-site routing between MaaS
-  instances only — it never routes directly to a provider.
+- MaaS is first in the request path, so rate limiting and metering
+  apply to ALL traffic regardless of backend type.
+- llm-d models are on standalone gateways, not directly connected to
+  MaaS GW. The `ExternalModel` CRD supports targeting any endpoint,
+  including local services.
+- One `ExternalModel` per distinct model name. Grid handles
+  multi-site availability via multiple `InferenceProvider` CRs and
+  the routing overlay.
 
-**MVP traffic flow** (all traffic goes through MaaS):
+**Traffic flow — llm-d models** (MaaS first, Grid routes):
 ```
-Consumer → Grid Gateway → picks site → MaaS Gateway → external API
-                                                     → local EPP → vLLM
+Consumer → MaaS Gateway → Grid Gateway → picks target → standalone GW → EPP → vLLM
 ```
 
-**Not this** (Grid routes directly, bypasses MaaS enforcement):
+**Traffic flow — third-party APIs** (MaaS direct, Grid bypassed):
 ```
-Consumer → Grid Gateway → external API (no limits, no metering!)
+Consumer → MaaS Gateway → external API (rate-limited, metered)
 ```
 
-**Post-MVP**: When Grid gets its own rate limiting (with Valkey) and
-metering integration, external models can optionally move to Grid
-level (`InferenceProvider` with `backendKind: api_provider`) for
-cost-aware cross-site fallback decisions. At that point the Grid can
-enforce limits and meter directly without needing MaaS in the path.
+**Post-MVP**: Grid-level external models (`InferenceProvider` with
+`backendKind: api_provider`) remain an option for cost-aware
+cross-site fallback routing.
 
 ---
 
-## Decision: Model catalog is declarative
+## Decision: Model catalog is auto-populated
 
-**Context**: How does the Grid know which models are available at which site?
+**Context**: How does the Grid know which models are available at
+which site? And how does MaaS know about Grid-managed models?
 
-**Decision**: Models are statically declared in `InferenceProvider` CRs
-(`spec.models`). No auto-discovery from backends.
+**Decision**: The model catalog is auto-populated by two reconcilers.
+Manual `InferenceProvider` creation remains possible but is not the
+primary path.
+
+**Reconciler chain**:
+1. Platform admin deploys llm-d with opt-in annotation
+   (`grid.praxis-proxy.io/managed: "true"`) in a filtered namespace.
+2. `ai grid` reconciler (runs on each cluster with llm-d) watches
+   annotated deployments and creates `InferenceProvider` CRs.
+3. Grid Operator gossips provider state via SWIM. Overlay regenerates.
+4. `external model` reconciler (runs on ingress clusters only) watches
+   InferenceProviders and creates `ExternalModel` + `MaaSModelRef`
+   CRs — one per distinct model name.
 
 **Details**:
-- Adding a model = update the `InferenceProvider` CR. Operator reconciles
-  and regenerates the overlay.
-- Metrics scraping collects load signals (queue depth, KV cache), not model
-  catalogs.
-- No integration with K8s `InferencePool`/`InferenceModel` CRDs from
-  gateway-api-inference-extension.
+- Metrics scraping collects load signals (queue depth, KV cache), not
+  model catalogs.
 - Site matching uses `siteSelector.matchLabels` against `GridSite` CRs.
-- Overlay renderer produces one routing candidate per (model, matched site)
-  pair.
-
-**Open question** (resolved): Should automation auto-populate
-`InferenceProvider` CRs? Yes — MaaS → Grid reconciler, Phase 2.
-See [gaps.md](gaps.md).
+- Overlay renderer produces one routing candidate per (model, matched
+  site) pair.
+- Opt-in annotation + namespace filter prevent unauthorized models
+  from entering the catalog.
 
 ### Cross-cluster model discovery via SWIM gossip
 
-The Grid already propagates model information across clusters. The
+The Grid propagates model information across clusters. The
 `GridStateSnapshot` CRDT, exchanged between all sites via SWIM gossip,
 contains:
 
@@ -126,59 +177,42 @@ no custom sync — the data is already there.
 
 ---
 
-## Decision: Multi-cluster model listing via Grid overlay
+## Decision: Multi-cluster model listing via CRD materialization
 
 **Context**: `GET /v1/models` on maas-api uses a K8s informer watching
-local `MaaSModelRef` CRs. In multi-cluster, a user hitting Cluster A's
-maas-api only sees Cluster A's models — not models deployed on Cluster B.
+local `MaaSModelRef` CRs. In multi-cluster, a user hitting Ingress A's
+maas-api must see models from ALL clusters, not just Ingress A's local
+models.
 
-**Decision**: Extend maas-api's `MaaSModelRefLister` to also read the
-Grid overlay ConfigMap (already present as a local file on each cluster
-via the `overlay-sync` sidecar).
+**Decision**: The `external model` reconciler (running on each ingress cluster)
+creates `MaaSModelRef` CRs for every model in the Grid mesh. maas-api's
+existing K8s informer sees these CRs — minor maas-api changes acceptable to simplify integration.
 
 **How it works**:
 
 ```
-GET /v1/models → composite lister
-  ├── local K8s informer (MaaSModelRef CRs on this cluster)  [existing]
-  └── Grid overlay file (models from ALL clusters via SWIM)   [new]
-      → merge + deduplicate by model name
+GET /v1/models → existing K8s informer
+  └── MaaSModelRef CRs on this ingress cluster
+        ├── admin-created (manual ExternalModel for third-party APIs)
+        └── reconciler-created (from InferenceProvider state via SWIM)
       → filter by user's subscriptions (existing logic)
       → return OpenAI-compatible model list
 ```
 
-The Grid overlay is a local file/ConfigMap that the `overlay-sync`
-sidecar already maintains from the Grid Operator's output. maas-api
-reads it as a second source — no network calls, no DB, no new
-infrastructure. The file contains all models across all sites with
-their backend kind, phase, and site information.
-
-**What needs to change**:
-- **maas-api**: New `MaaSModelRefLister` implementation that reads
-  the Grid overlay file and converts `InferenceProvider` candidates
-  to the same model format. Compose with the existing K8s informer
-  lister. Deduplicate by model name (same model on multiple sites
-  appears once in the listing).
-- **Deployment**: Mount the overlay ConfigMap into the maas-api pod
-  (same as it's mounted into the Grid Gateway pod).
+The `external model` reconciler watches `InferenceProvider` CRs, which
+reflect the full mesh state thanks to SWIM gossip. For each distinct
+model name, it creates an `ExternalModel` + `MaaSModelRef` CR on the
+ingress cluster. Since the reconciler runs on every ingress cluster, each ingress cluster
+independently converges to the same model catalog.
 
 **Why this approach**:
-- No new data path — overlay is already maintained by Grid gossip
-- No DB changes — model listing stays informer/file-based
-- No network calls — local file read
-- The `MaaSModelRefLister` interface is clean and extensible
-  (existing interface, new implementation)
+- **Zero maas-api code changes** — uses the existing informer path
+- No overlay mount, no composite lister, no new data path
 - Subscription filtering works unchanged — user sees only models
   their subscription grants access to
-
-**Rejected alternatives**:
-- **Shared DB for model metadata**: Net new feature, adds DB writes
-  to maas-controller reconciliation, duplicates state (CRDs + DB).
-- **Don't solve it (MVP-only)**: Users can call any model by name
-  (Grid routes), but can't discover models from other clusters. Poor
-  developer experience for a platform serving 8K engineers.
-- **Hub-only model listing**: Single point of failure, doesn't work
-  if models differ per site.
+- Each ingress cluster independently derives the catalog from SWIM state —
+  no single point of failure, no cross-ingress-cluster CRD replication needed
+  for model data
 
 ---
 
@@ -192,6 +226,9 @@ migration checklist.
 
 - **Enrollment automation**: Manual token minting OK for dogfood?
   Or automate for scale?
+- **What K8s resource does the `ai grid` reconciler watch?** Gateway
+  CRD, InferencePool, or custom llm-d CRD? Needs confirmation with
+  the llm-d team.
 
 ---
 
@@ -341,47 +378,40 @@ Tenant Admin
             └── Model appears in GET /v1/models for authorized users
 ```
 
-### Open questions — Management layer
+### Management plane topology
 
-- **MaaS → Grid auto-reconciliation**: When a tenant admin creates a
-  `MaaSModelRef` + `MaaSSubscription`, should a controller automatically
-  create the corresponding `InferenceProvider` CR in the Grid? This would
-  bridge the MaaS management plane with Grid's routing plane without
-  requiring the admin to manage both CRD sets.
+The `ai grid` reconciler watches llm-d deployments and creates
+`InferenceProvider` CRs. The `external model` reconciler creates
+`ExternalModel` + `MaaSModelRef` CRs on ingress clusters.
 
-- **Where does the management plane live in multi-cluster?**
+**Decision: Shared DB across ingress clusters + ACM/GitOps for CRD
+replication.**
 
-  **Decision: Option C now, evolve to Option D.**
+**API keys**: Shared PostgreSQL DB across all ingress clusters. Key
+creation and validation are immediately consistent. Key revocation
+is immediate. Inference clusters do not run maas-api and do not connect
+to the shared DB.
 
-  **Phase 1 (Option C — shared DB):** All sites run maas-api locally but
-  share one RDS instance. Keys, models, and usage are immediately
-  consistent. maas-controller runs on the hub only (CRDs are
-  cluster-scoped). Simple, no replication logic. Works well when all
-  sites are in the same region/cloud.
+**MaaS CRDs** (`MaaSSubscription`, `MaaSAuthPolicy`,
+`MaasTenantConfig`, `AITenant`): Replicated across ingress clusters
+via ACM/GitOps. Eventually consistent (seconds to low minutes).
+These are admin-managed resources — propagation delay is invisible
+for administrative operations.
 
-  **Phase 2 (Option D — hub + cross-cluster reconciler):** When sites
-  span regions or cloud boundaries, hub owns the write path (key
-  creation, revocation, subscription changes). A reconciler loop syncs
-  key hashes and subscription data from hub → peer sites on a
-  multi-second interval. Each site's maas-api validates locally against
-  its replica. Key operations are low-frequency (create once, use for
-  weeks), so a few seconds of propagation delay is invisible — the user
-  is still copying the key into their env vars during that window.
+**Auto-generated CRDs** (`ExternalModel`, `MaaSModelRef`): Created
+independently on each ingress cluster by the `external model` reconciler.
+Each ingress cluster sees the full mesh model catalog via SWIM gossip, so each
+ingress cluster's reconciler converges to the same set of ExternalModel CRs.
+Not replicated via ACM — generated locally from Grid state.
 
-  The reconciler could be a simple controller polling the hub DB, or
-  PostgreSQL logical replication if staying on RDS. No need for
-  sub-second consistency — this is not a trading system.
-
-  Rejected alternatives:
-  - **Hub only (Option A)**: Cross-cluster latency on every validation
-    call (hot path). Hub is SPOF for all sites.
-  - **Per-site isolated (Option B)**: Keys don't work across sites.
-    Usage fragmented. Breaks the multi-cluster value proposition.
-  - **Grid-native replication (Option E)**: Leverages SWIM/CRDTs but
-    is significant new work and mixes concerns between Grid (routing)
-    and MaaS (management).
-
-- **Kuadrant vs Grid for rate limiting**: Resolved — see decision below.
+Rejected alternatives:
+- **Centralized only (Option A)**: Cross-cluster latency on every validation
+  call (hot path). Central node is SPOF for all sites.
+- **Per-site isolated (Option B)**: Keys don't work across sites.
+  Usage fragmented. Breaks the multi-cluster value proposition.
+- **Grid-native replication (Option E)**: Leverages SWIM/CRDTs but
+  is significant new work and mixes concerns between Grid (routing)
+  and MaaS (management).
 
 ---
 
@@ -393,11 +423,17 @@ MVP decision rationale, and post-MVP migration path.
 
 ---
 
-## Decision: Auth migration — API key at the Grid level via maas-api
+## Decision: Auth at MaaS level — Grid does routing
 
-See [auth-and-ratelimit.md](auth-and-ratelimit.md) for detailed auth flow,
-filter chain configuration, maas-api validation response extension,
-and AuthenticatedIdentity bridge design.
+MaaS Gateway handles all authentication. Grid Gateway does routing
+only — no `api_key_auth`, no identity resolution. The request flow
+is: Customer → MaaS GW (auth, rate limiting, metering) → Grid GW
+(routing) → target.
+
+See [auth-and-ratelimit.md](auth-and-ratelimit.md) for the detailed
+MaaS auth pipeline (Authorino, Limitador). Grid GW trusts requests
+from MaaS GW based on network-level controls (same-cluster service
+routing or cross-cluster mTLS).
 
 ---
 

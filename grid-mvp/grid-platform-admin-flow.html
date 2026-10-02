@@ -193,7 +193,7 @@ const N = {
   dns: { x: 150, y: 60, w: 210, h: 34, label: 'admin.example.com', color: '#d29922', fs: 12 },
 
   // Cluster A — Hub
-  clusterA: { x: 60, y: 115, w: 600, h: 720, type: 'boundary', label: 'CLUSTER A · us-east-1 · HUB (DNS + Observability)', labelAlign: 'left' },
+  clusterA: { x: 60, y: 115, w: 600, h: 720, type: 'boundary', label: 'CLUSTER A · us-east-1 · INGRESS CLUSTER', labelAlign: 'left' },
 
   adminUI: { x: 90, y: 150, w: 250, h: 55, label: 'Admin Console', sublabel: 'Provided by RHCE', color: '#d29922', fs: 15 },
   mgmtAPI: { x: 90, y: 225, w: 250, h: 55, label: 'Management API', sublabel: 'Orchestration · Provided by RHCE', color: '#8957e5', fs: 14 },
@@ -204,12 +204,13 @@ const N = {
 
   kuadrantA: { x: 380, y: 460, w: 250, h: 45, label: 'Kuadrant', sublabel: 'Limitador · Authorino', color: '#f0883e', fs: 13 },
 
-  reconciler: { x: 90, y: 480, w: 270, h: 50, label: 'MaaS → Grid Reconciler', sublabel: 'auto-creates InferenceProvider CRs', color: '#d29922', fs: 13, type: 'plugin' },
+  reconcilerAiGrid: { x: 90, y: 475, w: 270, h: 28, label: 'ai grid reconciler', sublabel: 'llm-d (opt-in) → InferenceProvider', color: '#d29922', fs: 11, type: 'plugin' },
+  reconcilerExtModel: { x: 90, y: 510, w: 270, h: 28, label: 'external model reconciler', sublabel: 'InferenceProvider → ExternalModel + MaaSModelRef', color: '#d29922', fs: 11, type: 'plugin' },
 
   gridopA: { x: 90, y: 555, w: 250, h: 50, label: 'Grid Operator', sublabel: 'SWIM · Signals · Overlay', color: '#8957e5', fs: 14 },
 
-  gridgwA: { x: 90, y: 630, w: 250, h: 50, label: 'Grid Gateway · Praxis AI', sublabel: 'api_key_auth · routing', color: '#d29922', fs: 13 },
-  maasgwA: { x: 370, y: 630, w: 260, h: 50, label: 'MaaS Gateway · Praxis AI', sublabel: 'Auth · Rate limit · API translation', color: '#8957e5', fs: 12 },
+  gridgwA: { x: 90, y: 630, w: 250, h: 50, label: 'Grid Gateway · Praxis AI', sublabel: 'routing only · no auth', color: '#d29922', fs: 13 },
+  maasgwA: { x: 370, y: 630, w: 260, h: 50, label: 'MaaS Gateway · Praxis AI', sublabel: 'Auth · Rate limit · Cred injection (entry point)', color: '#8957e5', fs: 12 },
 
   eppA: { x: 90, y: 705, w: 540, h: 45, label: 'llm-d (EPP → vLLM) · Qwen3-Coder-30B', sublabel: 'LLMInferenceService · local backend', color: '#39d2c0', fs: 13 },
 
@@ -218,20 +219,20 @@ const N = {
 
   maasapiA: { x: 380, y: 540, w: 250, h: 50, label: 'maas-api', sublabel: 'Keys · Models · Subscriptions', color: '#8957e5', fs: 14 },
 
-  // Cluster B — peer
-  clusterB: { x: 720, y: 115, w: 380, h: 490, type: 'boundary', label: 'CLUSTER B · eu-west-1', labelAlign: 'left' },
+  // Cluster B — ingress peer
+  clusterB: { x: 720, y: 115, w: 380, h: 490, type: 'boundary', label: 'CLUSTER B · eu-west-1 · INGRESS CLUSTER', labelAlign: 'left' },
 
-  crdsB:    { x: 750, y: 155, w: 320, h: 55, label: 'MaaS CRDs (pushed by ACM)', sublabel: 'Same CRDs as hub — ACM distributes', color: '#8957e5', fs: 12 },
+  crdsB:    { x: 750, y: 155, w: 320, h: 55, label: 'MaaS CRDs (pushed by ACM)', sublabel: 'Same CRDs as ingress cluster — ACM distributes', color: '#8957e5', fs: 12 },
   maasCtlB: { x: 750, y: 230, w: 150, h: 42, label: 'maas-controller', sublabel: 'CRD reconciliation', color: '#8957e5', fs: 11 },
-  reconcilerB: { x: 920, y: 230, w: 150, h: 42, label: 'MaaS → Grid', sublabel: 'InferenceProvider', color: '#d29922', fs: 11, type: 'plugin' },
+  reconcilerB: { x: 920, y: 230, w: 150, h: 42, label: 'Reconcilers', sublabel: 'ai grid + external model', color: '#d29922', fs: 11, type: 'plugin' },
   gridopB:  { x: 750, y: 295, w: 320, h: 45, label: 'Grid Operator', sublabel: 'SWIM · Signals · Overlay', color: '#8957e5', fs: 13 },
   kuadrantB: { x: 750, y: 360, w: 150, h: 40, label: 'Kuadrant', sublabel: 'Limitador · Authorino', color: '#f0883e', fs: 11 },
   eppB:     { x: 750, y: 420, w: 320, h: 45, label: 'llm-d (EPP → vLLM) · Llama-4-Scout', sublabel: 'LLMInferenceService', color: '#39d2c0', fs: 12 },
-  gwsB:     { x: 750, y: 485, w: 320, h: 42, label: 'Grid Gateway + MaaS Gateway', sublabel: 'Praxis AI · Full stack', color: '#d29922', fs: 12 },
+  gwsB:     { x: 750, y: 485, w: 320, h: 42, label: 'MaaS GW + Grid GW (routing only)', sublabel: 'Praxis AI · MaaS-first flow', color: '#d29922', fs: 12 },
   promB:    { x: 750, y: 545, w: 150, h: 40, label: 'Prometheus', sublabel: 'Local metrics', color: '#f0883e', fs: 11 },
 
   // Shared
-  shareddb: { x: 200, y: 860, w: 480, h: 55, label: 'Shared PostgreSQL', sublabel: 'API keys · Subscriptions · User quotas', color: '#39d2c0', fs: 16 },
+  shareddb: { x: 200, y: 860, w: 480, h: 55, label: 'Shared PostgreSQL', sublabel: 'API keys · Subscriptions · Ingress clusters only', color: '#39d2c0', fs: 16 },
 };
 
 // ================================================================
@@ -244,22 +245,23 @@ const tips = {
   crds: { t: 'MaaS CRDs', d: 'Kubernetes Custom Resources that define the MaaS data model. Created by the Management API, reconciled by maas-controller.', dt: [['MaaSModelRef', 'References a model backend (LLMInferenceService or ExternalModel)'], ['ExternalModel', 'External provider: provider format, targetModel, endpoint, credentialRef'], ['MaaSSubscription', 'Grants model access with per-model token rate limits'], ['MaaSAuthPolicy', 'Authorization: maps modelRefs to subjects (groups/users)'], ['Readiness', 'Model Ready = Subscription + AuthPolicy + healthy backend']] },
   maasCtl: { t: 'maas-controller', d: 'Kubernetes operator that reconciles MaaS CRDs into Kuadrant policies. When CRDs are created/updated, it generates AuthPolicy and TokenRateLimitPolicy resources.', dt: [['Input', 'MaaSModelRef, MaaSSubscription, MaaSAuthPolicy'], ['Output', 'Kuadrant AuthPolicy + TokenRateLimitPolicy'], ['Readiness', 'Model transitions to Ready when governance paired + backend healthy']] },
   kuadrantA: { t: 'Kuadrant', d: 'Rate limiting and auth policy enforcement. Limitador counts tokens per-user/per-model. Authorino validates subscription-level access.', dt: [['Limitador', 'Token-based rate limiting via TokenRateLimitPolicy'], ['Authorino', 'Subscription-level auth via MaaSAuthPolicy']], links: [['Kuadrant', 'https://docs.kuadrant.io']] },
-  reconciler: { t: 'MaaS → Grid Reconciler', d: 'Watches MaaSModelRef CRDs and auto-creates corresponding InferenceProvider CRs for Grid routing. Bridges MaaS management plane with Grid routing plane.', dt: [['Status', 'TO BUILD'], ['Input', 'MaaSModelRef CRDs'], ['Output', 'InferenceProvider CRs'], ['Purpose', 'Admin manages one CRD set, Grid learns automatically']] },
+  reconcilerAiGrid: { t: 'ai grid reconciler', d: 'Watches llm-d Gateway deployments with opt-in annotation (grid.praxis-proxy.io/managed: "true") in configured namespaces. Creates InferenceProvider CRs. Runs on any cluster hosting llm-d models.', dt: [['Status', 'Phase 1'], ['Input', 'llm-d Gateway CRDs (opt-in annotation + namespace filter)'], ['Output', 'InferenceProvider CRs'], ['Runs on', 'Any cluster with llm-d (ingress or inference)']] },
+  reconcilerExtModel: { t: 'external model reconciler', d: 'Watches InferenceProvider CRs (full mesh state via SWIM gossip). Creates ExternalModel + MaaSModelRef CRs in MaaS. One ExternalModel per distinct model name. Runs on ingress clusters only.', dt: [['Status', 'Phase 1'], ['Input', 'InferenceProvider CRs (SWIM mesh state)'], ['Output', 'ExternalModel + MaaSModelRef CRs'], ['Runs on', 'Ingress clusters only']] },
   gridopA: { t: 'Grid Operator', d: 'Manages cross-cluster state via SWIM gossip. When it picks up a new InferenceProvider, it gossips the model to all peers. All sites learn about new models automatically.', dt: [['SWIM', 'UDP gossip, AES-GCM encrypted'], ['CRDT', 'GridStateSnapshot (capabilities, providers, tenant_spend)'], ['Output', 'Overlay ConfigMap for Grid Gateway']], links: [['Signals Contract', 'https://github.com/danielezonca/spare-notes/blob/main/grid-mvp/Ai-Grid-Signals-Contract.md']] },
   gridopB: { t: 'Grid Operator (Cluster B)', d: 'Same as Cluster A. Receives gossip from peers and generates local overlay.', dt: [['Role', 'Peer node in SWIM mesh']] },
-  gridgwA: { t: 'Grid Gateway', d: 'Consumer entry point. Validates API keys, routes to best site.', dt: [['Filters', 'api_key_auth → model_to_header → intelligent_route → load_balancer']], links: [['Data Plane Flow', 'https://htmlpreview.github.io/?https://github.com/danielezonca/spare-notes/blob/main/grid-mvp/grid-dataplane.html']] },
-  maasgwA: { t: 'MaaS Gateway', d: 'Site-local enforcement. Uses Kuadrant for auth/rate-limiting and Praxis plugins for API translation.', dt: [['Role', 'Site-local enforcement + routing']], links: [['MaaS Flow', 'https://noyitz.github.io/ai-gateway-docs/ai-gateway-flow.html']] },
+  gridgwA: { t: 'Grid Gateway', d: 'Routing only — no auth. Routes to best site based on overlay scoring.', dt: [['Filters', 'model_to_header → intelligent_route → load_balancer'], ['Auth', 'None — MaaS GW handles all auth upstream']], links: [['Data Plane Flow', 'https://htmlpreview.github.io/?https://github.com/danielezonca/spare-notes/blob/main/grid-mvp/grid-dataplane.html']] },
+  maasgwA: { t: 'MaaS Gateway', d: 'Customer entry point on ingress clusters. Handles auth (Authorino), rate limiting (Limitador), credential injection, and metering.', dt: [['Role', 'Entry point — auth, limits, metering, cred injection'], ['Flow', 'MaaS GW → Grid GW → target (MaaS-first)']], links: [['MaaS Flow', 'https://noyitz.github.io/ai-gateway-docs/ai-gateway-flow.html']] },
   eppA: { t: 'llm-d (EPP → vLLM)', d: 'llm-d inference stack. EPP selects optimal pod, vLLM serves the model.', dt: [['Model', 'Qwen3-Coder-30B'], ['Engine', 'vLLM']], links: [['llm-d', 'https://github.com/llm-d']] },
-  crdsB: { t: 'MaaS CRDs (Cluster B)', d: 'Same CRDs pushed by ACM. maas-controller on Cluster B reconciles them independently.', dt: [['Source', 'ACM/GitOps from hub'], ['Content', 'Identical to hub CRDs']] },
-  maasCtlB: { t: 'maas-controller (Cluster B)', d: 'Same reconciliation as hub. Creates Kuadrant policies locally.', dt: [['Role', 'Local CRD reconciliation']] },
-  reconcilerB: { t: 'MaaS → Grid Reconciler (Cluster B)', d: 'Same as hub. Creates InferenceProvider CRs locally.', dt: [['Status', 'TO BUILD']] },
-  kuadrantB: { t: 'Kuadrant (Cluster B)', d: 'Same as hub.', dt: [['Role', 'Local rate limiting + auth']] },
+  crdsB: { t: 'MaaS CRDs (Cluster B)', d: 'Same CRDs pushed by ACM. maas-controller on Cluster B reconciles them independently.', dt: [['Source', 'ACM/GitOps from ingress cluster'], ['Content', 'Identical to ingress cluster CRDs']] },
+  maasCtlB: { t: 'maas-controller (Cluster B)', d: 'Same reconciliation as ingress cluster. Creates Kuadrant policies locally.', dt: [['Role', 'Local CRD reconciliation']] },
+  reconcilerB: { t: 'Reconcilers (Cluster B)', d: 'Same as ingress cluster. ai grid + external model reconcilers run on every ingress cluster.', dt: [['Status', 'Phase 1']] },
+  kuadrantB: { t: 'Kuadrant (Cluster B)', d: 'Same as ingress cluster.', dt: [['Role', 'Local rate limiting + auth']] },
   eppB: { t: 'llm-d (EPP → vLLM) — Cluster B', d: 'Serves Llama-4-Scout on Cluster B.', dt: [['Model', 'Llama-4-Scout']] },
-  gwsB: { t: 'Grid + MaaS Gateway (Cluster B)', d: 'Full identical stack on Cluster B.', dt: [['Role', 'Entry point + enforcement']] },
+  gwsB: { t: 'MaaS GW + Grid GW (Cluster B)', d: 'Ingress cluster B. MaaS-first flow: auth → limits → routing.', dt: [['Role', 'Entry point (MaaS) + routing only (Grid)']] },
   promA: { t: 'Prometheus (Cluster A)', d: 'Local Prometheus instance scraping metrics from all components on this cluster: vLLM inference latency, token usage, queue depth, KV cache utilization, Kuadrant rate limit counters.', dt: [['Scrapes', 'vLLM, EPP, Kuadrant, Grid Gateway, MaaS Gateway'], ['Metrics', 'Token usage, latency, queue depth, KV cache, rate limits'], ['Upstream', 'Federated by Thanos via Observability Operator']] },
   promB: { t: 'Prometheus (Cluster B)', d: 'Same local scraping on Cluster B. Metrics federated to central Thanos.', dt: [['Scrapes', 'Same set of local components'], ['Upstream', 'Federated by Thanos']] },
-  shareddb: { t: 'Shared PostgreSQL', d: 'Single database shared across all clusters. API keys created on any cluster work everywhere.', dt: [['Data', 'API keys, subscriptions, quotas'], ['Access', 'All maas-api instances connect']] },
-  observability: { t: 'Thanos + Grafana (Hub)', d: 'Runs on the hub cluster via ACM Multi-cluster Observability Operator. Thanos receives metrics from all managed clusters\' Prometheus instances. Grafana dashboards query Thanos for cross-cluster views.', dt: [['Location', 'Hub cluster (Cluster A)'], ['Thanos', 'Receives metrics from all managed clusters'], ['Grafana', 'Dashboards: token usage, latency, cost, capacity'], ['ACM', 'Multi-cluster Observability Operator deploys all components']] },
+  shareddb: { t: 'Shared PostgreSQL', d: 'Database shared across ingress clusters only. API keys created on any ingress cluster work on all hubs. Inference clusters do not connect.', dt: [['Data', 'API keys, subscriptions, quotas'], ['Access', 'Ingress cluster maas-api instances only']] },
+  observability: { t: 'Thanos + Grafana (Hub)', d: 'Runs on the ingress cluster via ACM Multi-cluster Observability Operator. Thanos receives metrics from all managed clusters\' Prometheus instances. Grafana dashboards query Thanos for cross-cluster views.', dt: [['Location', 'Ingress cluster (Cluster A)'], ['Thanos', 'Receives metrics from all managed clusters'], ['Grafana', 'Dashboards: token usage, latency, cost, capacity'], ['ACM', 'Multi-cluster Observability Operator deploys all components']] },
   maasapiA: { t: 'maas-api', d: 'HTTP API for key management, model listing, subscriptions. Users create API keys here once access is granted.', dt: [['Endpoints', '/v1/models, /v1/api-keys, /v1/subscriptions'], ['DB', 'Shared PostgreSQL']], links: [['MaaS Repo', 'https://github.com/opendatahub-io/models-as-a-service']] },
   dns: { t: 'Admin DNS', d: 'Stable endpoint for the admin console.', dt: [['URL', 'admin.example.com']] },
 };
@@ -420,7 +422,7 @@ function drawBounds() {
   ctx.fillText(cb.label, tx(cb.x + 12), ty(cb.y + 18));
   ctx.textAlign = 'right';
   ctx.fillStyle = '#8b949e88';
-  ctx.fillText('same stack, peer', tx(cb.x + cb.w - 12), ty(cb.y + 18));
+  ctx.fillText('ingress peer', tx(cb.x + cb.w - 12), ty(cb.y + 18));
 
   // SWIM gossip arc
   ctx.save();
@@ -435,18 +437,19 @@ function drawBounds() {
   ctx.fillText('SWIM gossip (mTLS)', tx(700), ty(480));
   ctx.restore();
 
-  // "TO BUILD" label on reconciler
-  ctx.save();
-  ctx.font = `bold ${ts(8)}px system-ui`;
-  ctx.fillStyle = '#d29922'; ctx.globalAlpha = 0.8; ctx.textAlign = 'right';
-  ctx.fillText('TO BUILD', tx(N.reconciler.x + N.reconciler.w - 8), ty(N.reconciler.y + 14));
-  ctx.restore();
-
-  // "TO BUILD" label on reconcilerB
+  // "PHASE 1" label on reconcilers
   ctx.save();
   ctx.font = `bold ${ts(7)}px system-ui`;
   ctx.fillStyle = '#d29922'; ctx.globalAlpha = 0.8; ctx.textAlign = 'right';
-  ctx.fillText('TO BUILD', tx(N.reconcilerB.x + N.reconcilerB.w - 5), ty(N.reconcilerB.y + 12));
+  ctx.fillText('PHASE 1', tx(N.reconcilerAiGrid.x + N.reconcilerAiGrid.w - 8), ty(N.reconcilerAiGrid.y + 10));
+  ctx.fillText('PHASE 1', tx(N.reconcilerExtModel.x + N.reconcilerExtModel.w - 8), ty(N.reconcilerExtModel.y + 10));
+  ctx.restore();
+
+  // "PHASE 1" label on reconcilerB
+  ctx.save();
+  ctx.font = `bold ${ts(7)}px system-ui`;
+  ctx.fillStyle = '#d29922'; ctx.globalAlpha = 0.8; ctx.textAlign = 'right';
+  ctx.fillText('PHASE 1', tx(N.reconcilerB.x + N.reconcilerB.w - 5), ty(N.reconcilerB.y + 12));
   ctx.restore();
 
   // DB connection lines
@@ -642,15 +645,12 @@ function initInspector() {
   if (activeFlow === 'deploy') {
     setInspPhase('pipeline');
     inspHeaders = [
-      { v: 'POST /api/v1/models/deploy', s: 'keep', id: 'h-path' },
-      { v: 'Authorization: Bearer <admin-token>', s: 'keep', id: 'h-auth' },
-      { v: 'Content-Type: application/json', s: 'keep', id: 'h-ct' },
+      { v: 'kubectl apply -f llm-d-deployment.yaml', s: 'keep', id: 'h-path' },
     ];
     inspBody = [
-      { v: '"model_name": "claude-haiku-4-5"', s: 'keep', id: 'b-model' },
-      { v: '"backend": "ExternalModel"', s: 'keep', id: 'b-backend' },
-      { v: '"provider": "anthropic"', s: 'keep', id: 'b-provider' },
-      { v: '"target_clusters": ["cluster-a", "cluster-b"]', s: 'keep', id: 'b-targets' },
+      { v: 'model: Qwen3-Coder-30B (llm-d + vLLM)', s: 'keep', id: 'b-model' },
+      { v: 'annotation: grid.praxis-proxy.io/managed: "true"', s: 'keep', id: 'b-ann' },
+      { v: 'namespace: ai-models (matches Grid filter)', s: 'keep', id: 'b-ns' },
     ];
   } else if (activeFlow === 'tenant') {
     setInspPhase('pipeline');
@@ -705,49 +705,60 @@ function inspStep(stepNum) {
 
 function inspStepDeploy(n) {
   switch (n) {
-    case 1: inspStepLabel = '① Admin opens console'; break;
-    case 2: inspStepLabel = '② Console → Management API: deploy model'; inspHeaders.find(l => l.id === 'h-path').s = 'highlight'; break;
-    case 3:
-      inspStepLabel = '③ Admin selects target clusters';
-      const tgt = inspBody.find(l => l.id === 'b-targets');
-      if (tgt) tgt.s = 'highlight';
-      break;
-    case 4: inspStepLabel = '④ Management API generates CRDs'; setInspPhase('crds'); break;
-    case 5:
-      inspStepLabel = '⑤ ExternalModel + MaaSModelRef';
+    case 1:
+      inspStepLabel = '① Admin deploys llm-d with annotation';
       inspCycle = [
-        { v: 'ExternalModel: provider=anthropic, target=claude-haiku-4-5', s: 'add', id: 'c-ext' },
-        { v: 'MaaSModelRef: refs ExternalModel', s: 'add', id: 'c-ref' },
+        { v: 'annotation: grid.praxis-proxy.io/managed: "true"', s: 'add', id: 'c-ann' },
+        { v: 'namespace: matches Grid filter', s: 'add', id: 'c-ns' },
       ];
       break;
+    case 2:
+      inspStepLabel = '② ai grid reconciler → InferenceProvider';
+      setInspPhase('crds');
+      inspCycle = [
+        { v: 'InferenceProvider:', s: 'add', id: 'c-ip' },
+        { v: '  backendKind: "local"', s: 'add', id: 'c-bk' },
+        { v: '  models: [{name: "Qwen3-Coder-30B"}]', s: 'add', id: 'c-mod' },
+        { v: '  endpoint: standalone-gw.ai-models.svc', s: 'add', id: 'c-ep' },
+      ];
+      break;
+    case 3: inspStepLabel = '③ Grid Operator picks up InferenceProvider'; break;
+    case 4: inspStepLabel = '④ SWIM gossips model to all peers'; break;
+    case 5:
+      inspStepLabel = '⑤ external model reconciler (ingress clusters only)';
+      inspCycle.push({ v: 'ExternalModel: provider=grid, target=Qwen3-Coder-30B', s: 'add', id: 'c-ext' });
+      inspCycle.push({ v: 'MaaSModelRef: refs ExternalModel', s: 'add', id: 'c-ref' });
+      break;
     case 6:
-      inspStepLabel = '⑥ MaaSSubscription + MaaSAuthPolicy';
+      inspStepLabel = '⑥ ExternalModel + MaaSModelRef on ingress cluster';
+      inspCycle.push({ v: '  endpoint: grid-gw.grid-system.svc', s: 'add', id: 'c-gep' });
+      inspCycle.push({ v: '  (one per distinct model name)', s: 'highlight', id: 'c-dedup' });
+      break;
+    case 7: inspStepLabel = '⑦ Admin creates subscription + auth policy'; break;
+    case 8:
+      inspStepLabel = '⑧ ACM pushes subscription + auth CRDs';
       inspCycle.push({ v: 'MaaSSubscription: 100K tokens/hr, 1M/month', s: 'add', id: 'c-sub' });
       inspCycle.push({ v: 'MaaSAuthPolicy: groups=[ai-team-alpha-*]', s: 'add', id: 'c-auth' });
       break;
-    case 7: inspStepLabel = '⑦ ACM pushes CRDs to selected clusters'; break;
-    case 8: inspStepLabel = '⑧ maas-controller reconciles'; break;
-    case 9:
-      inspStepLabel = '⑨ Kuadrant: AuthPolicy + TokenRateLimitPolicy';
+    case 9: inspStepLabel = '⑨ maas-controller reconciles'; break;
+    case 10:
+      inspStepLabel = '⑩ Kuadrant: AuthPolicy + TokenRateLimitPolicy';
       inspCycle.push({ v: 'AuthPolicy: subject → model mapping', s: 'add', id: 'c-ap' });
       inspCycle.push({ v: 'TokenRateLimitPolicy: 100K/hr', s: 'add', id: 'c-trl' });
       break;
-    case 10:
-      inspStepLabel = '⑩ Model → Ready';
+    case 11:
+      inspStepLabel = '⑪ Model → Ready';
       inspCycle.push({ v: 'status: Ready (governance paired + healthy)', s: 'highlight', id: 'c-ready' });
       break;
-    case 11: inspStepLabel = '⑪ Reconciler → InferenceProvider CR'; break;
-    case 12: inspStepLabel = '⑫ Grid Operator picks up provider'; break;
-    case 13: inspStepLabel = '⑬ SWIM gossips to all peers'; break;
-    case 14: inspStepLabel = '⑭ ACM pushes CRDs to Cluster B (selected)'; break;
-    case 15: inspStepLabel = '⑮ Cluster B reconciles'; break;
-    case 16:
-      inspStepLabel = '⑯ Model routable on selected clusters';
+    case 12: inspStepLabel = '⑫ ACM pushes CRDs to Cluster B (ingress)'; break;
+    case 13: inspStepLabel = '⑬ Cluster B reconciles'; break;
+    case 14:
+      inspStepLabel = '⑭ Model routable across entire Grid';
       setInspPhase('ready');
       inspCycle = [
-        { v: 'cluster-a: Ready (local)', s: 'highlight', id: 'c-r1' },
-        { v: 'cluster-b: Ready (selected, via ACM)', s: 'highlight', id: 'c-r2' },
-        { v: 'Grid overlay: model in selected overlays (SWIM)', s: 'highlight', id: 'c-r3' },
+        { v: 'ingress-a: Ready (local + reconciled)', s: 'highlight', id: 'c-r1' },
+        { v: 'ingress-b: Ready (ACM + reconciled)', s: 'highlight', id: 'c-r2' },
+        { v: 'Grid overlay: model in all overlays (SWIM)', s: 'highlight', id: 'c-r3' },
       ];
       break;
   }
@@ -774,7 +785,7 @@ function inspStepTenant(n) {
       inspCycle.push({ v: '  modelRefs: [Qwen3-Coder-30B, claude-haiku-4-5]', s: 'add', id: 'c-mrefs' });
       break;
     case 6: inspStepLabel = '⑥ ACM pushes CRDs to all clusters'; break;
-    case 7: inspStepLabel = '⑦ maas-controller reconciles on hub'; break;
+    case 7: inspStepLabel = '⑦ maas-controller reconciles on ingress cluster'; break;
     case 8:
       inspStepLabel = '⑧ Kuadrant policies created';
       inspCycle = [
@@ -890,22 +901,20 @@ function inspStepMonitor(n) {
 let activeFlow = 'deploy';
 
 const flowDeploy = [
-  { t: '1. Admin opens Admin Console', mode: 'arrow', f: 'admin', to: 'dns', c: '#58a6ff', num: 1, fromRight: true, toLeft: true },
-  { t: '2. Console → Management API: deploy model', mode: 'arrow', f: 'adminUI', to: 'mgmtAPI', c: '#8957e5', num: 2, fromBottom: true, toTop: true },
-  { t: '3. Admin selects target clusters', mode: 'lightup', target: 'mgmtAPI', badge: 3 },
-  { t: '4. Management API generates MaaS CRDs', mode: 'lightup', target: 'mgmtAPI', badge: 4 },
-  { t: '5. CRDs: ExternalModel + MaaSModelRef', mode: 'lightup', target: 'crds', badge: 5 },
-  { t: '6. CRDs: MaaSSubscription + MaaSAuthPolicy', mode: 'lightup', target: 'crds', badge: 6 },
-  { t: '7. ACM pushes CRDs to selected clusters', mode: 'arrow', f: 'acm', to: 'crds', c: '#3fb950', num: 7, fromBottom: true, toTop: true },
-  { t: '8. maas-controller reconciles CRDs', mode: 'arrow', f: 'crds', to: 'maasCtl', c: '#8957e5', num: 8, fromRight: true, toLeft: true },
-  { t: '9. Kuadrant: AuthPolicy + TokenRateLimitPolicy', mode: 'arrow', f: 'maasCtl', to: 'kuadrantA', c: '#f0883e', num: 9, fromBottom: true, toTop: true },
-  { t: '10. Model transitions to Ready', mode: 'lightup', target: 'crds', badge: '✓' },
-  { t: '11. Reconciler creates InferenceProvider CR', mode: 'arrow', f: 'crds', to: 'reconciler', c: '#d29922', num: 11, fromBottom: true, fromXOff: -60, toTop: true, toXOff: -60 },
-  { t: '12. Grid Operator picks up InferenceProvider', mode: 'arrow', f: 'reconciler', to: 'gridopA', c: '#8957e5', num: 12, fromBottom: true, toTop: true },
-  { t: '13. SWIM gossips model to all peers', mode: 'arrow', f: 'gridopA', to: 'gridopB', c: '#8957e5', num: 13, fromRight: true, toLeft: true, waypoints: [{ x: 700, y: 480 }] },
-  { t: '14. ACM pushes CRDs to Cluster B (selected)', mode: 'arrow', f: 'acm', to: 'crdsB', c: '#3fb950', num: 14, fromRight: true, toLeft: true, waypoints: [{ x: 680, y: 330 }, { x: 680, y: 185 }] },
-  { t: '15. Cluster B: maas-controller reconciles', mode: 'lightup', target: 'maasCtlB', badge: 15 },
-  { t: '16. Model routable on selected clusters', mode: 'lightup', target: 'gwsB', badge: '✓' },
+  { t: '1. Admin deploys llm-d with opt-in annotation', mode: 'lightup', target: 'eppA', badge: 1 },
+  { t: '2. ai grid reconciler creates InferenceProvider', mode: 'arrow', f: 'eppA', to: 'reconcilerAiGrid', c: '#d29922', num: 2, fromBottom: true, fromXOff: -100, toTop: true },
+  { t: '3. Grid Operator picks up InferenceProvider', mode: 'arrow', f: 'reconcilerAiGrid', to: 'gridopA', c: '#8957e5', num: 3, fromBottom: true, toTop: true },
+  { t: '4. SWIM gossips model to all peers', mode: 'arrow', f: 'gridopA', to: 'gridopB', c: '#8957e5', num: 4, fromRight: true, toLeft: true, waypoints: [{ x: 700, y: 530 }] },
+  { t: '5. external model reconciler: ExternalModel + MaaSModelRef', mode: 'arrow', f: 'reconcilerAiGrid', to: 'reconcilerExtModel', c: '#d29922', num: 5, fromBottom: true, toTop: true },
+  { t: '6. ExternalModel + MaaSModelRef created on ingress cluster', mode: 'arrow', f: 'reconcilerExtModel', to: 'crds', c: '#8957e5', num: 6, fromLeft: true, toBottom: true, toXOff: 60 },
+  { t: '7. Admin creates MaaSSubscription + MaaSAuthPolicy', mode: 'arrow', f: 'adminUI', to: 'mgmtAPI', c: '#8957e5', num: 7, fromBottom: true, toTop: true },
+  { t: '8. ACM pushes subscription + auth CRDs', mode: 'arrow', f: 'acm', to: 'crds', c: '#3fb950', num: 8, fromBottom: true, toTop: true },
+  { t: '9. maas-controller reconciles CRDs', mode: 'arrow', f: 'crds', to: 'maasCtl', c: '#8957e5', num: 9, fromRight: true, toLeft: true },
+  { t: '10. Kuadrant: AuthPolicy + TokenRateLimitPolicy', mode: 'arrow', f: 'maasCtl', to: 'kuadrantA', c: '#f0883e', num: 10, fromBottom: true, toTop: true },
+  { t: '11. Model transitions to Ready', mode: 'lightup', target: 'crds', badge: '✓' },
+  { t: '12. ACM pushes CRDs to Cluster B (ingress)', mode: 'arrow', f: 'acm', to: 'crdsB', c: '#3fb950', num: 12, fromRight: true, toLeft: true, waypoints: [{ x: 680, y: 330 }, { x: 680, y: 185 }] },
+  { t: '13. Cluster B: maas-controller reconciles', mode: 'lightup', target: 'maasCtlB', badge: 13 },
+  { t: '14. Model routable across the entire Grid', mode: 'lightup', target: 'gwsB', badge: '✓' },
 ];
 
 const flowTenant = [
@@ -915,7 +924,7 @@ const flowTenant = [
   { t: '4. MaaSSubscription: SSO groups + token budgets', mode: 'lightup', target: 'crds', badge: 4 },
   { t: '5. MaaSAuthPolicy: SSO groups → model list', mode: 'lightup', target: 'crds', badge: 5 },
   { t: '6. ACM pushes CRDs to all clusters', mode: 'arrow', f: 'acm', to: 'crds', c: '#3fb950', num: 6, fromBottom: true, toTop: true },
-  { t: '7. maas-controller reconciles on hub', mode: 'arrow', f: 'crds', to: 'maasCtl', c: '#8957e5', num: 7, fromRight: true, toLeft: true },
+  { t: '7. maas-controller reconciles on ingress cluster', mode: 'arrow', f: 'crds', to: 'maasCtl', c: '#8957e5', num: 7, fromRight: true, toLeft: true },
   { t: '8. Kuadrant: AuthPolicy + TokenRateLimitPolicy', mode: 'arrow', f: 'maasCtl', to: 'kuadrantA', c: '#f0883e', num: 8, fromBottom: true, toTop: true },
   { t: '9. Users in SSO groups can now create API keys', mode: 'lightup', target: 'maasapiA', badge: 9 },
   { t: '10. ACM pushes to Cluster B', mode: 'arrow', f: 'acm', to: 'crdsB', c: '#3fb950', num: 10, fromRight: true, toLeft: true, waypoints: [{ x: 680, y: 330 }, { x: 680, y: 185 }] },
@@ -929,14 +938,14 @@ const flowScrape = [
   { t: '4. Scrapes: Grid Gateway request metrics', mode: 'arrow', f: 'gridgwA', to: 'promA', c: '#f0883e', num: 4, fromBottom: true, fromXOff: -50, toTop: true, toXOff: -80 },
   { t: '5. Prometheus B scrapes Cluster B', mode: 'lightup', target: 'promB', badge: 5 },
   { t: '6. Scrapes: vLLM + Kuadrant + Gateways', mode: 'arrow', f: 'eppB', to: 'promB', c: '#f0883e', num: 6, fromBottom: true, fromXOff: -60, toTop: true },
-  { t: '7. Prometheus A → Thanos (hub)', mode: 'arrow', f: 'promA', to: 'observability', c: '#f0883e', num: 7, fromRight: true, toLeft: true },
-  { t: '8. Cluster B Prometheus → Thanos (hub)', mode: 'arrow', f: 'promB', to: 'observability', c: '#f0883e', num: 8, fromBottom: true, fromXOff: 30, toTop: true, toXOff: 80, waypoints: [{ x: 850, y: 810 }] },
+  { t: '7. Prometheus A → Thanos (ingress)', mode: 'arrow', f: 'promA', to: 'observability', c: '#f0883e', num: 7, fromRight: true, toLeft: true },
+  { t: '8. Cluster B Prometheus → Thanos (ingress)', mode: 'arrow', f: 'promB', to: 'observability', c: '#f0883e', num: 8, fromBottom: true, fromXOff: 30, toTop: true, toXOff: 80, waypoints: [{ x: 850, y: 810 }] },
   { t: '9. Thanos: cross-cluster aggregation ready', mode: 'lightup', target: 'observability', badge: '✓' },
 ];
 
 const flowMonitor = [
   { t: '1. Admin opens Admin Console', mode: 'arrow', f: 'admin', to: 'dns', c: '#58a6ff', num: 1, fromRight: true, toLeft: true },
-  { t: '2. Console → Grafana dashboards (hub)', mode: 'arrow', f: 'adminUI', to: 'observability', c: '#f0883e', num: 2, fromBottom: true, fromXOff: -80, toTop: true, toXOff: -60, waypoints: [{ x: 70, y: 750 }, { x: 70, y: 790 }] },
+  { t: '2. Console → Grafana dashboards (ingress)', mode: 'arrow', f: 'adminUI', to: 'observability', c: '#f0883e', num: 2, fromBottom: true, fromXOff: -80, toTop: true, toXOff: -60, waypoints: [{ x: 70, y: 750 }, { x: 70, y: 790 }] },
   { t: '3. Grafana queries Thanos (multi-cluster)', mode: 'lightup', target: 'observability', badge: 3 },
   { t: '4. Token usage per user, per model, per cluster', mode: 'lightup', target: 'observability', badge: 4 },
   { t: '5. Inference latency + queue depth + KV cache', mode: 'lightup', target: 'observability', badge: 5 },

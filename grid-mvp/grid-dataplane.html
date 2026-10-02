@@ -16,9 +16,9 @@ svg{width:100%;height:auto;display:block}
 <body>
 <div class="wrap">
 <h1>AI Grid — Multi-cluster Data Plane</h1>
-<p class="sub">Brownfield scenario: Grid Gateway + existing MaaS Gateway per site &middot; All clusters equivalent &middot; Hub = DNS designation</p>
+<p class="sub">Ingress &amp; Inference topology &middot; MaaS-first flow &middot; Ingress cluster = MaaS GW + Grid GW &middot; Inference cluster = Grid GW + inference only</p>
 
-<svg viewBox="0 0 1400 920" xmlns="http://www.w3.org/2000/svg">
+<svg viewBox="0 0 1400 960" xmlns="http://www.w3.org/2000/svg">
 <defs>
   <marker id="ah-blue" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="none" stroke="#58a6ff" stroke-width="1.2"/></marker>
   <marker id="ah-green" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="none" stroke="#3fb950" stroke-width="1.2"/></marker>
@@ -46,329 +46,282 @@ svg{width:100%;height:auto;display:block}
      ═══════════════════════════════════════════ -->
 <rect x="200" y="80" width="1000" height="24" rx="4" fill="#0d1a2a" stroke="#58a6ff" stroke-width="1.2" filter="url(#sh)"/>
 <text x="240" y="96" fill="#58a6ff" font-size="9" font-weight="600">DNS</text>
-<text x="700" y="96" text-anchor="middle" fill="#e6edf3" font-size="10">ai-gateway.example.com → stable endpoint</text>
+<text x="700" y="96" text-anchor="middle" fill="#e6edf3" font-size="10">ai-gateway.example.com → nearest ingress cluster MaaS GW</text>
 
-<!-- DNS → clusters -->
+<!-- DNS → ingress clusters only (not inference) -->
 <line x1="350" y1="104" x2="265" y2="140" stroke="#58a6ff" stroke-width="1.2" marker-end="url(#ah-blue)" opacity="0.4"/>
 <line x1="700" y1="104" x2="700" y2="140" stroke="#58a6ff" stroke-width="1.2" marker-end="url(#ah-blue)" opacity="0.4"/>
-<line x1="1050" y1="104" x2="1135" y2="140" stroke="#58a6ff" stroke-width="1.2" marker-end="url(#ah-blue)" opacity="0.4"/>
+<!-- no DNS arrow to Cluster C (inference) -->
 
 <!-- ═══════════════════════════════════════════
-     CLUSTER A — us-east-1
+     CLUSTER A — us-east-1 — INGRESS
      ═══════════════════════════════════════════ -->
-<rect x="60" y="142" width="380" height="440" rx="10" fill="#161b22" fill-opacity="0.3" stroke="#30363d" stroke-width="2" stroke-dasharray="8,4"/>
+<rect x="60" y="142" width="380" height="480" rx="10" fill="#161b22" fill-opacity="0.3" stroke="#30363d" stroke-width="2" stroke-dasharray="8,4"/>
 <text x="76" y="160" fill="#8b949e" font-size="9" font-weight="600">CLUSTER A · us-east-1</text>
-<text x="380" y="160" text-anchor="end" fill="#3fb950" font-size="8" font-weight="600">hub (DNS)</text>
+<text x="380" y="160" text-anchor="end" fill="#3fb950" font-size="8" font-weight="600">INGRESS CLUSTER</text>
 
-<!-- Grid Gateway A -->
-<rect x="85" y="172" width="330" height="68" rx="8" fill="#2a1f0d" stroke="#d29922" stroke-width="2" filter="url(#sh)"/>
-<text x="250" y="189" text-anchor="middle" fill="#d29922" font-size="9" font-weight="600" letter-spacing="0.5">GRID GATEWAY</text>
-<text x="250" y="204" text-anchor="middle" fill="#e6edf3" font-size="13" font-weight="700">Praxis AI</text>
-<text x="250" y="218" text-anchor="middle" fill="#8b949e" font-size="8">api_key_auth · geo fencing · site selection</text>
-<text x="250" y="230" text-anchor="middle" fill="#6e7681" font-size="7">:8080 gateway · :9901 admin</text>
+<!-- MaaS Gateway A (entry point — top) -->
+<rect x="85" y="172" width="330" height="58" rx="8" fill="#1c1340" stroke="#8957e5" stroke-width="2" filter="url(#sh)"/>
+<text x="250" y="188" text-anchor="middle" fill="#8957e5" font-size="9" font-weight="600" letter-spacing="0.5">MAAS GATEWAY (entry point)</text>
+<text x="250" y="203" text-anchor="middle" fill="#e6edf3" font-size="13" font-weight="700">Praxis AI</text>
+<text x="250" y="218" text-anchor="middle" fill="#8b949e" font-size="8">Auth (Authorino) · Rate limit (Limitador) · Cred injection · Metering</text>
+
+<!-- Grid Gateway A (routing only — below MaaS) -->
+<rect x="85" y="242" width="330" height="52" rx="8" fill="#2a1f0d" stroke="#d29922" stroke-width="2" filter="url(#sh)"/>
+<text x="250" y="258" text-anchor="middle" fill="#d29922" font-size="9" font-weight="600" letter-spacing="0.5">GRID GATEWAY (routing only)</text>
+<text x="250" y="273" text-anchor="middle" fill="#e6edf3" font-size="12" font-weight="700">Praxis AI</text>
+<text x="250" y="286" text-anchor="middle" fill="#8b949e" font-size="8">model_to_header · intelligent_route · load_balancer</text>
+
+<!-- MaaS GW → Grid GW -->
+<path d="M250,230 L250,238" fill="none" stroke="#8957e5" stroke-width="1.5" marker-end="url(#ah-purple)"/>
 
 <!-- Grid Operator A -->
-<rect x="85" y="252" width="155" height="52" rx="6" fill="#1c1340" stroke="#8957e5" stroke-width="1.2" filter="url(#sh)"/>
-<text x="162" y="268" text-anchor="middle" fill="#8957e5" font-size="8" font-weight="600">GRID OPERATOR</text>
-<text x="162" y="281" text-anchor="middle" fill="#e6edf3" font-size="10" font-weight="600">SWIM · Signals</text>
-<text x="162" y="296" text-anchor="middle" fill="#6e7681" font-size="7">Overlay generation</text>
+<rect x="85" y="306" width="155" height="48" rx="6" fill="#1c1340" stroke="#8957e5" stroke-width="1.2" filter="url(#sh)"/>
+<text x="162" y="321" text-anchor="middle" fill="#8957e5" font-size="8" font-weight="600">GRID OPERATOR</text>
+<text x="162" y="334" text-anchor="middle" fill="#e6edf3" font-size="10" font-weight="600">SWIM · Signals</text>
+<text x="162" y="348" text-anchor="middle" fill="#6e7681" font-size="7">Overlay · ai grid reconciler · external model reconciler</text>
 
 <!-- overlay arrow -->
-<path d="M200,252 L250,240" fill="none" stroke="#bc8cff" stroke-width="1" stroke-dasharray="3,3" marker-end="url(#ah-purple)"/>
-<text x="235" y="250" fill="#bc8cff" font-size="6">overlay</text>
-
-<!-- MaaS Gateway A -->
-<rect x="260" y="252" width="155" height="52" rx="6" fill="#1c1340" stroke="#8957e5" stroke-width="1.2" filter="url(#sh)"/>
-<text x="337" y="268" text-anchor="middle" fill="#8957e5" font-size="8" font-weight="600">MAAS GATEWAY</text>
-<text x="337" y="281" text-anchor="middle" fill="#e6edf3" font-size="10" font-weight="600">Praxis AI</text>
-<text x="337" y="296" text-anchor="middle" fill="#6e7681" font-size="7">Auth (Authorino) · Rate limit · API translation · Cred injection</text>
-
-<!-- Grid GW → MaaS GW -->
-<path d="M337,240 L337,248" fill="none" stroke="#d29922" stroke-width="1.5" marker-end="url(#ah-amber)"/>
+<path d="M200,306 L250,294" fill="none" stroke="#bc8cff" stroke-width="1" stroke-dasharray="3,3" marker-end="url(#ah-purple)"/>
+<text x="235" y="304" fill="#bc8cff" font-size="6">overlay</text>
 
 <!-- maas-api A -->
-<rect x="85" y="316" width="155" height="44" rx="6" fill="#1c1340" stroke="#8957e5" stroke-width="1" filter="url(#sh)"/>
-<text x="162" y="332" text-anchor="middle" fill="#8957e5" font-size="8" font-weight="600">AUTH</text>
-<text x="162" y="345" text-anchor="middle" fill="#e6edf3" font-size="10" font-weight="600">maas-api</text>
-<text x="162" y="356" text-anchor="middle" fill="#6e7681" font-size="7">Key validate · Models · Keys</text>
+<rect x="260" y="306" width="155" height="48" rx="6" fill="#1c1340" stroke="#8957e5" stroke-width="1" filter="url(#sh)"/>
+<text x="337" y="321" text-anchor="middle" fill="#8957e5" font-size="8" font-weight="600">AUTH</text>
+<text x="337" y="334" text-anchor="middle" fill="#e6edf3" font-size="10" font-weight="600">maas-api</text>
+<text x="337" y="348" text-anchor="middle" fill="#6e7681" font-size="7">Key validate · Models · Keys</text>
 
-<!-- Grid GW → maas-api -->
-<path d="M180,240 L162,312" fill="none" stroke="#bc8cff" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#ah-purple)"/>
-<text x="152" y="278" fill="#bc8cff" font-size="6">auth</text>
+<!-- MaaS GW → maas-api (auth arrow from MaaS, not Grid) -->
+<path d="M350,230 L337,302" fill="none" stroke="#bc8cff" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#ah-purple)"/>
+<text x="356" y="268" fill="#bc8cff" font-size="6">auth</text>
 
-<!-- metering A -->
-<rect x="260" y="316" width="155" height="44" rx="6" fill="#1c1340" stroke="#8957e5" stroke-width="1" filter="url(#sh)"/>
-<text x="337" y="332" text-anchor="middle" fill="#8957e5" font-size="8" font-weight="600">CONTROLLER</text>
-<text x="337" y="345" text-anchor="middle" fill="#e6edf3" font-size="10" font-weight="600">maas-controller</text>
-<text x="337" y="356" text-anchor="middle" fill="#6e7681" font-size="7">CRD reconciliation</text>
+<!-- Standalone GW A -->
+<rect x="85" y="368" width="330" height="40" rx="6" fill="#0d2626" stroke="#39d2c0" stroke-width="1.2" filter="url(#sh)"/>
+<text x="250" y="383" text-anchor="middle" fill="#39d2c0" font-size="8" font-weight="600">STANDALONE GATEWAY (llm-d GW)</text>
+<text x="250" y="398" text-anchor="middle" fill="#e6edf3" font-size="10" font-weight="600">EPP → vLLM · Qwen3-Coder-30B</text>
 
-<!-- MaaS GW → metering -->
-<path d="M337,304 L337,312" fill="none" stroke="#bc8cff" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#ah-purple)"/>
+<!-- Grid GW → Standalone GW -->
+<path d="M250,294 L250,364" fill="none" stroke="#d29922" stroke-width="1.2" marker-end="url(#ah-amber)"/>
 
-<!-- EPP + vLLM A -->
-<rect x="85" y="376" width="330" height="44" rx="6" fill="#0d2626" stroke="#39d2c0" stroke-width="1.2" filter="url(#sh)"/>
-<text x="250" y="392" text-anchor="middle" fill="#39d2c0" font-size="8" font-weight="600">INFERENCE</text>
-<text x="250" y="406" text-anchor="middle" fill="#e6edf3" font-size="10" font-weight="600">EPP → vLLM · Qwen3-Coder-30B</text>
-<text x="250" y="416" text-anchor="middle" fill="#6e7681" font-size="7">LLMInferenceService · local backend</text>
+<!-- External models from MaaS A (direct, Grid bypassed) -->
+<rect x="85" y="420" width="330" height="40" rx="6" fill="#1a0d0d" stroke="#f85149" stroke-width="1" filter="url(#sh)"/>
+<text x="250" y="436" text-anchor="middle" fill="#f85149" font-size="8" font-weight="600">EXTERNAL MODELS (MaaS direct — Grid bypassed)</text>
+<text x="250" y="450" text-anchor="middle" fill="#e6edf3" font-size="9">ExternalModel CRs · api.anthropic.com · api.openai.com</text>
 
-<!-- MaaS GW → EPP -->
-<path d="M337,304 L300,372" fill="none" stroke="#39d2c0" stroke-width="1.2" marker-end="url(#ah-teal)"/>
+<!-- MaaS GW → External (bypasses Grid GW) -->
+<path d="M130,230 L130,416" fill="none" stroke="#f85149" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#ah-red)" opacity="0.5"/>
+<text x="118" y="330" fill="#f85149" font-size="6" transform="rotate(-90,118,330)">direct (no Grid)</text>
 
-<!-- External models from MaaS A -->
-<rect x="85" y="432" width="330" height="40" rx="6" fill="#1a0d0d" stroke="#f85149" stroke-width="1" filter="url(#sh)"/>
-<text x="250" y="448" text-anchor="middle" fill="#f85149" font-size="8" font-weight="600">EXTERNAL MODELS (MaaS level)</text>
-<text x="250" y="462" text-anchor="middle" fill="#e6edf3" font-size="9">ExternalModel CRs · api.anthropic.com · api.openai.com</text>
-<text x="250" y="470" text-anchor="middle" fill="#6e7681" font-size="7">Rate limited by Limitador · Credential injection</text>
+<!-- Kuadrant stack A -->
+<rect x="85" y="472" width="155" height="38" rx="5" fill="#2a1a0a" stroke="#f0883e" stroke-width="1" filter="url(#sh)"/>
+<text x="162" y="486" text-anchor="middle" fill="#f0883e" font-size="8" font-weight="600">RATE LIMITING</text>
+<text x="162" y="500" text-anchor="middle" fill="#e6edf3" font-size="9">Kuadrant · Limitador</text>
 
-<!-- MaaS GW → External -->
-<path d="M337,304 L337,428" fill="none" stroke="#f85149" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#ah-red)" opacity="0.4"/>
+<rect x="260" y="472" width="155" height="38" rx="5" fill="#2a1a0a" stroke="#f0883e" stroke-width="1" filter="url(#sh)"/>
+<text x="337" y="486" text-anchor="middle" fill="#f0883e" font-size="8" font-weight="600">AUTH POLICY</text>
+<text x="337" y="500" text-anchor="middle" fill="#e6edf3" font-size="9">Kuadrant · Authorino</text>
 
-<!-- Limitador A -->
-<rect x="85" y="484" width="155" height="38" rx="5" fill="#2a1a0a" stroke="#f0883e" stroke-width="1" filter="url(#sh)"/>
-<text x="162" y="498" text-anchor="middle" fill="#f0883e" font-size="8" font-weight="600">RATE LIMITING</text>
-<text x="162" y="512" text-anchor="middle" fill="#e6edf3" font-size="9">Kuadrant · Limitador</text>
-<text x="162" y="520" text-anchor="middle" fill="#6e7681" font-size="7">Per-user · Per-model · Token budget</text>
-
-<!-- Authorino A -->
-<rect x="260" y="484" width="155" height="38" rx="5" fill="#2a1a0a" stroke="#f0883e" stroke-width="1" filter="url(#sh)"/>
-<text x="337" y="498" text-anchor="middle" fill="#f0883e" font-size="8" font-weight="600">AUTH POLICY</text>
-<text x="337" y="512" text-anchor="middle" fill="#e6edf3" font-size="9">Kuadrant · Authorino</text>
-<text x="337" y="520" text-anchor="middle" fill="#6e7681" font-size="7">MaaSAuthPolicy enforcement</text>
+<!-- maas-controller A -->
+<rect x="85" y="520" width="330" height="30" rx="5" fill="#1c1340" stroke="#8957e5" stroke-width="1" filter="url(#sh)" opacity="0.7"/>
+<text x="250" y="540" text-anchor="middle" fill="#8957e5" font-size="8" font-weight="600">maas-controller · CRD reconciliation</text>
 
 <!-- ═══════════════════════════════════════════
-     CLUSTER B — eu-west-1
+     CLUSTER B — eu-west-1 — INGRESS
      ═══════════════════════════════════════════ -->
-<rect x="510" y="142" width="380" height="440" rx="10" fill="#161b22" fill-opacity="0.3" stroke="#30363d" stroke-width="2" stroke-dasharray="8,4"/>
+<rect x="510" y="142" width="380" height="480" rx="10" fill="#161b22" fill-opacity="0.3" stroke="#30363d" stroke-width="2" stroke-dasharray="8,4"/>
 <text x="526" y="160" fill="#8b949e" font-size="9" font-weight="600">CLUSTER B · eu-west-1</text>
+<text x="830" y="160" text-anchor="end" fill="#3fb950" font-size="8" font-weight="600">INGRESS CLUSTER</text>
 
-<!-- Grid Gateway B -->
-<rect x="535" y="172" width="330" height="68" rx="8" fill="#2a1f0d" stroke="#d29922" stroke-width="2" filter="url(#sh)"/>
-<text x="700" y="189" text-anchor="middle" fill="#d29922" font-size="9" font-weight="600" letter-spacing="0.5">GRID GATEWAY</text>
-<text x="700" y="204" text-anchor="middle" fill="#e6edf3" font-size="13" font-weight="700">Praxis AI</text>
-<text x="700" y="218" text-anchor="middle" fill="#8b949e" font-size="8">api_key_auth · geo fencing · site selection</text>
-<text x="700" y="230" text-anchor="middle" fill="#6e7681" font-size="7">:8080 gateway · :9901 admin</text>
+<!-- MaaS Gateway B (entry point — top) -->
+<rect x="535" y="172" width="330" height="58" rx="8" fill="#1c1340" stroke="#8957e5" stroke-width="2" filter="url(#sh)"/>
+<text x="700" y="188" text-anchor="middle" fill="#8957e5" font-size="9" font-weight="600" letter-spacing="0.5">MAAS GATEWAY (entry point)</text>
+<text x="700" y="203" text-anchor="middle" fill="#e6edf3" font-size="13" font-weight="700">Praxis AI</text>
+<text x="700" y="218" text-anchor="middle" fill="#8b949e" font-size="8">Auth (Authorino) · Rate limit (Limitador) · Cred injection · Metering</text>
+
+<!-- Grid Gateway B (routing only) -->
+<rect x="535" y="242" width="330" height="52" rx="8" fill="#2a1f0d" stroke="#d29922" stroke-width="2" filter="url(#sh)"/>
+<text x="700" y="258" text-anchor="middle" fill="#d29922" font-size="9" font-weight="600" letter-spacing="0.5">GRID GATEWAY (routing only)</text>
+<text x="700" y="273" text-anchor="middle" fill="#e6edf3" font-size="12" font-weight="700">Praxis AI</text>
+<text x="700" y="286" text-anchor="middle" fill="#8b949e" font-size="8">model_to_header · intelligent_route · load_balancer</text>
+
+<!-- MaaS GW → Grid GW -->
+<path d="M700,230 L700,238" fill="none" stroke="#8957e5" stroke-width="1.5" marker-end="url(#ah-purple)"/>
 
 <!-- Grid Operator B -->
-<rect x="535" y="252" width="155" height="52" rx="6" fill="#1c1340" stroke="#8957e5" stroke-width="1.2" filter="url(#sh)"/>
-<text x="612" y="268" text-anchor="middle" fill="#8957e5" font-size="8" font-weight="600">GRID OPERATOR</text>
-<text x="612" y="281" text-anchor="middle" fill="#e6edf3" font-size="10" font-weight="600">SWIM · Signals</text>
-<text x="612" y="296" text-anchor="middle" fill="#6e7681" font-size="7">Overlay generation</text>
+<rect x="535" y="306" width="155" height="48" rx="6" fill="#1c1340" stroke="#8957e5" stroke-width="1.2" filter="url(#sh)"/>
+<text x="612" y="321" text-anchor="middle" fill="#8957e5" font-size="8" font-weight="600">GRID OPERATOR</text>
+<text x="612" y="334" text-anchor="middle" fill="#e6edf3" font-size="10" font-weight="600">SWIM · Signals</text>
+<text x="612" y="348" text-anchor="middle" fill="#6e7681" font-size="7">Overlay · ai grid reconciler · external model reconciler</text>
 
-<path d="M650,252 L700,240" fill="none" stroke="#bc8cff" stroke-width="1" stroke-dasharray="3,3" marker-end="url(#ah-purple)"/>
-<text x="685" y="250" fill="#bc8cff" font-size="6">overlay</text>
-
-<!-- MaaS Gateway B -->
-<rect x="710" y="252" width="155" height="52" rx="6" fill="#1c1340" stroke="#8957e5" stroke-width="1.2" filter="url(#sh)"/>
-<text x="787" y="268" text-anchor="middle" fill="#8957e5" font-size="8" font-weight="600">MAAS GATEWAY</text>
-<text x="787" y="281" text-anchor="middle" fill="#e6edf3" font-size="10" font-weight="600">Praxis AI</text>
-<text x="787" y="296" text-anchor="middle" fill="#6e7681" font-size="7">Auth (Authorino) · Rate limit · API translation · Cred injection</text>
-
-<path d="M787,240 L787,248" fill="none" stroke="#d29922" stroke-width="1.5" marker-end="url(#ah-amber)"/>
+<path d="M650,306 L700,294" fill="none" stroke="#bc8cff" stroke-width="1" stroke-dasharray="3,3" marker-end="url(#ah-purple)"/>
+<text x="685" y="304" fill="#bc8cff" font-size="6">overlay</text>
 
 <!-- maas-api B -->
-<rect x="535" y="316" width="155" height="44" rx="6" fill="#1c1340" stroke="#8957e5" stroke-width="1" filter="url(#sh)"/>
-<text x="612" y="332" text-anchor="middle" fill="#8957e5" font-size="8" font-weight="600">AUTH</text>
-<text x="612" y="345" text-anchor="middle" fill="#e6edf3" font-size="10" font-weight="600">maas-api</text>
-<text x="612" y="356" text-anchor="middle" fill="#6e7681" font-size="7">Key validate · Models · Keys</text>
+<rect x="710" y="306" width="155" height="48" rx="6" fill="#1c1340" stroke="#8957e5" stroke-width="1" filter="url(#sh)"/>
+<text x="787" y="321" text-anchor="middle" fill="#8957e5" font-size="8" font-weight="600">AUTH</text>
+<text x="787" y="334" text-anchor="middle" fill="#e6edf3" font-size="10" font-weight="600">maas-api</text>
+<text x="787" y="348" text-anchor="middle" fill="#6e7681" font-size="7">Key validate · Models · Keys</text>
 
-<path d="M630,240 L612,312" fill="none" stroke="#bc8cff" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#ah-purple)"/>
-<text x="602" y="278" fill="#bc8cff" font-size="6">auth</text>
+<path d="M800,230 L787,302" fill="none" stroke="#bc8cff" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#ah-purple)"/>
+<text x="806" y="268" fill="#bc8cff" font-size="6">auth</text>
 
-<!-- metering B -->
-<rect x="710" y="316" width="155" height="44" rx="6" fill="#1c1340" stroke="#8957e5" stroke-width="1" filter="url(#sh)"/>
-<text x="787" y="332" text-anchor="middle" fill="#8957e5" font-size="8" font-weight="600">CONTROLLER</text>
-<text x="787" y="345" text-anchor="middle" fill="#e6edf3" font-size="10" font-weight="600">maas-controller</text>
-<text x="787" y="356" text-anchor="middle" fill="#6e7681" font-size="7">CRD reconciliation</text>
+<!-- Standalone GW B -->
+<rect x="535" y="368" width="330" height="40" rx="6" fill="#0d2626" stroke="#39d2c0" stroke-width="1.2" filter="url(#sh)"/>
+<text x="700" y="383" text-anchor="middle" fill="#39d2c0" font-size="8" font-weight="600">STANDALONE GATEWAY (llm-d GW)</text>
+<text x="700" y="398" text-anchor="middle" fill="#e6edf3" font-size="10" font-weight="600">EPP → vLLM · Qwen3-Coder-30B</text>
 
-<path d="M787,304 L787,312" fill="none" stroke="#bc8cff" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#ah-purple)"/>
-
-<!-- EPP + vLLM B -->
-<rect x="535" y="376" width="330" height="44" rx="6" fill="#0d2626" stroke="#39d2c0" stroke-width="1.2" filter="url(#sh)"/>
-<text x="700" y="392" text-anchor="middle" fill="#39d2c0" font-size="8" font-weight="600">INFERENCE</text>
-<text x="700" y="406" text-anchor="middle" fill="#e6edf3" font-size="10" font-weight="600">EPP → vLLM · Qwen3-Coder-30B</text>
-<text x="700" y="416" text-anchor="middle" fill="#6e7681" font-size="7">LLMInferenceService · local backend</text>
-
-<path d="M787,304 L750,372" fill="none" stroke="#39d2c0" stroke-width="1.2" marker-end="url(#ah-teal)"/>
+<path d="M700,294 L700,364" fill="none" stroke="#d29922" stroke-width="1.2" marker-end="url(#ah-amber)"/>
 
 <!-- External models from MaaS B -->
-<rect x="535" y="432" width="330" height="40" rx="6" fill="#1a0d0d" stroke="#f85149" stroke-width="1" filter="url(#sh)"/>
-<text x="700" y="448" text-anchor="middle" fill="#f85149" font-size="8" font-weight="600">EXTERNAL MODELS (MaaS level)</text>
-<text x="700" y="462" text-anchor="middle" fill="#e6edf3" font-size="9">ExternalModel CRs · api.anthropic.com · api.openai.com</text>
+<rect x="535" y="420" width="330" height="40" rx="6" fill="#1a0d0d" stroke="#f85149" stroke-width="1" filter="url(#sh)"/>
+<text x="700" y="436" text-anchor="middle" fill="#f85149" font-size="8" font-weight="600">EXTERNAL MODELS (MaaS direct — Grid bypassed)</text>
+<text x="700" y="450" text-anchor="middle" fill="#e6edf3" font-size="9">ExternalModel CRs · api.anthropic.com · api.openai.com</text>
 
-<path d="M787,304 L787,428" fill="none" stroke="#f85149" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#ah-red)" opacity="0.4"/>
+<path d="M580,230 L580,416" fill="none" stroke="#f85149" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#ah-red)" opacity="0.5"/>
+<text x="568" y="330" fill="#f85149" font-size="6" transform="rotate(-90,568,330)">direct (no Grid)</text>
 
-<!-- Limitador B -->
-<rect x="535" y="484" width="155" height="38" rx="5" fill="#2a1a0a" stroke="#f0883e" stroke-width="1" filter="url(#sh)"/>
-<text x="612" y="498" text-anchor="middle" fill="#f0883e" font-size="8" font-weight="600">RATE LIMITING</text>
-<text x="612" y="512" text-anchor="middle" fill="#e6edf3" font-size="9">Kuadrant · Limitador</text>
+<!-- Kuadrant stack B -->
+<rect x="535" y="472" width="155" height="38" rx="5" fill="#2a1a0a" stroke="#f0883e" stroke-width="1" filter="url(#sh)"/>
+<text x="612" y="486" text-anchor="middle" fill="#f0883e" font-size="8" font-weight="600">RATE LIMITING</text>
+<text x="612" y="500" text-anchor="middle" fill="#e6edf3" font-size="9">Kuadrant · Limitador</text>
 
-<!-- Authorino B -->
-<rect x="710" y="484" width="155" height="38" rx="5" fill="#2a1a0a" stroke="#f0883e" stroke-width="1" filter="url(#sh)"/>
-<text x="787" y="498" text-anchor="middle" fill="#f0883e" font-size="8" font-weight="600">AUTH POLICY</text>
-<text x="787" y="512" text-anchor="middle" fill="#e6edf3" font-size="9">Kuadrant · Authorino</text>
+<rect x="710" y="472" width="155" height="38" rx="5" fill="#2a1a0a" stroke="#f0883e" stroke-width="1" filter="url(#sh)"/>
+<text x="787" y="486" text-anchor="middle" fill="#f0883e" font-size="8" font-weight="600">AUTH POLICY</text>
+<text x="787" y="500" text-anchor="middle" fill="#e6edf3" font-size="9">Kuadrant · Authorino</text>
+
+<!-- maas-controller B -->
+<rect x="535" y="520" width="330" height="30" rx="5" fill="#1c1340" stroke="#8957e5" stroke-width="1" filter="url(#sh)" opacity="0.7"/>
+<text x="700" y="540" text-anchor="middle" fill="#8957e5" font-size="8" font-weight="600">maas-controller · CRD reconciliation</text>
 
 <!-- ═══════════════════════════════════════════
-     CLUSTER C — eu-west-2
+     CLUSTER C — eu-west-2 — INFERENCE
      ═══════════════════════════════════════════ -->
-<rect x="960" y="142" width="380" height="440" rx="10" fill="#161b22" fill-opacity="0.3" stroke="#30363d" stroke-width="2" stroke-dasharray="8,4"/>
+<rect x="960" y="142" width="380" height="330" rx="10" fill="#161b22" fill-opacity="0.3" stroke="#30363d" stroke-width="2" stroke-dasharray="8,4"/>
 <text x="976" y="160" fill="#8b949e" font-size="9" font-weight="600">CLUSTER C · eu-west-2</text>
+<text x="1280" y="160" text-anchor="end" fill="#d29922" font-size="8" font-weight="600">INFERENCE CLUSTER</text>
 
-<!-- Grid Gateway C -->
-<rect x="985" y="172" width="330" height="68" rx="8" fill="#2a1f0d" stroke="#d29922" stroke-width="2" filter="url(#sh)"/>
-<text x="1150" y="189" text-anchor="middle" fill="#d29922" font-size="9" font-weight="600" letter-spacing="0.5">GRID GATEWAY</text>
-<text x="1150" y="204" text-anchor="middle" fill="#e6edf3" font-size="13" font-weight="700">Praxis AI</text>
-<text x="1150" y="218" text-anchor="middle" fill="#8b949e" font-size="8">api_key_auth · geo fencing · site selection</text>
-<text x="1150" y="230" text-anchor="middle" fill="#6e7681" font-size="7">:8080 gateway · :9901 admin</text>
+<!-- Grid Gateway C (routing only — receives cross-cluster traffic) -->
+<rect x="985" y="172" width="330" height="52" rx="8" fill="#2a1f0d" stroke="#d29922" stroke-width="2" filter="url(#sh)"/>
+<text x="1150" y="188" text-anchor="middle" fill="#d29922" font-size="9" font-weight="600" letter-spacing="0.5">GRID GATEWAY (routing only)</text>
+<text x="1150" y="203" text-anchor="middle" fill="#e6edf3" font-size="12" font-weight="700">Praxis AI</text>
+<text x="1150" y="216" text-anchor="middle" fill="#8b949e" font-size="8">Receives cross-cluster traffic · Routes to local standalone GW</text>
 
 <!-- Grid Operator C -->
-<rect x="985" y="252" width="155" height="52" rx="6" fill="#1c1340" stroke="#8957e5" stroke-width="1.2" filter="url(#sh)"/>
-<text x="1062" y="268" text-anchor="middle" fill="#8957e5" font-size="8" font-weight="600">GRID OPERATOR</text>
-<text x="1062" y="281" text-anchor="middle" fill="#e6edf3" font-size="10" font-weight="600">SWIM · Signals</text>
-<text x="1062" y="296" text-anchor="middle" fill="#6e7681" font-size="7">Overlay generation</text>
+<rect x="985" y="236" width="155" height="48" rx="6" fill="#1c1340" stroke="#8957e5" stroke-width="1.2" filter="url(#sh)"/>
+<text x="1062" y="251" text-anchor="middle" fill="#8957e5" font-size="8" font-weight="600">GRID OPERATOR</text>
+<text x="1062" y="264" text-anchor="middle" fill="#e6edf3" font-size="10" font-weight="600">SWIM · Signals</text>
+<text x="1062" y="278" text-anchor="middle" fill="#6e7681" font-size="7">Overlay · ai grid reconciler</text>
 
-<path d="M1100,252 L1150,240" fill="none" stroke="#bc8cff" stroke-width="1" stroke-dasharray="3,3" marker-end="url(#ah-purple)"/>
-<text x="1135" y="250" fill="#bc8cff" font-size="6">overlay</text>
+<path d="M1100,236 L1150,224" fill="none" stroke="#bc8cff" stroke-width="1" stroke-dasharray="3,3" marker-end="url(#ah-purple)"/>
+<text x="1135" y="234" fill="#bc8cff" font-size="6">overlay</text>
 
-<!-- MaaS Gateway C -->
-<rect x="1160" y="252" width="155" height="52" rx="6" fill="#1c1340" stroke="#8957e5" stroke-width="1.2" filter="url(#sh)"/>
-<text x="1237" y="268" text-anchor="middle" fill="#8957e5" font-size="8" font-weight="600">MAAS GATEWAY</text>
-<text x="1237" y="281" text-anchor="middle" fill="#e6edf3" font-size="10" font-weight="600">Praxis AI</text>
-<text x="1237" y="296" text-anchor="middle" fill="#6e7681" font-size="7">Auth (Authorino) · Rate limit · API translation · Cred injection</text>
+<!-- Standalone GW C -->
+<rect x="985" y="298" width="330" height="40" rx="6" fill="#0d2626" stroke="#39d2c0" stroke-width="1.2" filter="url(#sh)"/>
+<text x="1150" y="313" text-anchor="middle" fill="#39d2c0" font-size="8" font-weight="600">STANDALONE GATEWAY (llm-d GW)</text>
+<text x="1150" y="328" text-anchor="middle" fill="#e6edf3" font-size="10" font-weight="600">EPP → vLLM · Llama-4-Scout</text>
 
-<path d="M1237,240 L1237,248" fill="none" stroke="#d29922" stroke-width="1.5" marker-end="url(#ah-amber)"/>
+<!-- Grid GW → Standalone GW C -->
+<path d="M1150,224 L1150,294" fill="none" stroke="#d29922" stroke-width="1.2" marker-end="url(#ah-amber)"/>
 
-<!-- maas-api C -->
-<rect x="985" y="316" width="155" height="44" rx="6" fill="#1c1340" stroke="#8957e5" stroke-width="1" filter="url(#sh)"/>
-<text x="1062" y="332" text-anchor="middle" fill="#8957e5" font-size="8" font-weight="600">AUTH</text>
-<text x="1062" y="345" text-anchor="middle" fill="#e6edf3" font-size="10" font-weight="600">maas-api</text>
-<text x="1062" y="356" text-anchor="middle" fill="#6e7681" font-size="7">Key validate · Models · Keys</text>
+<!-- Additional inference C -->
+<rect x="985" y="350" width="330" height="40" rx="6" fill="#0d2626" stroke="#39d2c0" stroke-width="1" filter="url(#sh)" opacity="0.7"/>
+<text x="1150" y="365" text-anchor="middle" fill="#39d2c0" font-size="8" font-weight="600">INFERENCE</text>
+<text x="1150" y="378" text-anchor="middle" fill="#e6edf3" font-size="9">EPP → vLLM · Qwen3-Coder-30B (second pool)</text>
 
-<path d="M1080,240 L1062,312" fill="none" stroke="#bc8cff" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#ah-purple)"/>
-<text x="1052" y="278" fill="#bc8cff" font-size="6">auth</text>
-
-<!-- metering C -->
-<rect x="1160" y="316" width="155" height="44" rx="6" fill="#1c1340" stroke="#8957e5" stroke-width="1" filter="url(#sh)"/>
-<text x="1237" y="332" text-anchor="middle" fill="#8957e5" font-size="8" font-weight="600">CONTROLLER</text>
-<text x="1237" y="345" text-anchor="middle" fill="#e6edf3" font-size="10" font-weight="600">maas-controller</text>
-<text x="1237" y="356" text-anchor="middle" fill="#6e7681" font-size="7">CRD reconciliation</text>
-
-<path d="M1237,304 L1237,312" fill="none" stroke="#bc8cff" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#ah-purple)"/>
-
-<!-- EPP + vLLM C -->
-<rect x="985" y="376" width="330" height="44" rx="6" fill="#0d2626" stroke="#39d2c0" stroke-width="1.2" filter="url(#sh)"/>
-<text x="1150" y="392" text-anchor="middle" fill="#39d2c0" font-size="8" font-weight="600">INFERENCE</text>
-<text x="1150" y="406" text-anchor="middle" fill="#e6edf3" font-size="10" font-weight="600">EPP → vLLM · Llama-4-Scout</text>
-<text x="1150" y="416" text-anchor="middle" fill="#6e7681" font-size="7">LLMInferenceService · local backend</text>
-
-<path d="M1237,304 L1200,372" fill="none" stroke="#39d2c0" stroke-width="1.2" marker-end="url(#ah-teal)"/>
-
-<!-- External models from MaaS C -->
-<rect x="985" y="432" width="330" height="40" rx="6" fill="#1a0d0d" stroke="#f85149" stroke-width="1" filter="url(#sh)"/>
-<text x="1150" y="448" text-anchor="middle" fill="#f85149" font-size="8" font-weight="600">EXTERNAL MODELS (MaaS level)</text>
-<text x="1150" y="462" text-anchor="middle" fill="#e6edf3" font-size="9">ExternalModel CRs · api.anthropic.com</text>
-
-<path d="M1237,304 L1237,428" fill="none" stroke="#f85149" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#ah-red)" opacity="0.4"/>
-
-<!-- Limitador C -->
-<rect x="985" y="484" width="155" height="38" rx="5" fill="#2a1a0a" stroke="#f0883e" stroke-width="1" filter="url(#sh)"/>
-<text x="1062" y="498" text-anchor="middle" fill="#f0883e" font-size="8" font-weight="600">RATE LIMITING</text>
-<text x="1062" y="512" text-anchor="middle" fill="#e6edf3" font-size="9">Kuadrant · Limitador</text>
-
-<!-- Authorino C -->
-<rect x="1160" y="484" width="155" height="38" rx="5" fill="#2a1a0a" stroke="#f0883e" stroke-width="1" filter="url(#sh)"/>
-<text x="1237" y="498" text-anchor="middle" fill="#f0883e" font-size="8" font-weight="600">AUTH POLICY</text>
-<text x="1237" y="512" text-anchor="middle" fill="#e6edf3" font-size="9">Kuadrant · Authorino</text>
+<!-- Inference cluster annotation -->
+<rect x="985" y="404" width="330" height="28" rx="5" fill="#161b22" stroke="#30363d" stroke-width="1" opacity="0.6"/>
+<text x="1150" y="418" text-anchor="middle" fill="#6e7681" font-size="8">No MaaS GW · No maas-api · No shared DB · Air-gapped from internet OK</text>
+<text x="1150" y="430" text-anchor="middle" fill="#6e7681" font-size="7">Private mesh connectivity to hubs required (SWIM + mTLS)</text>
 
 <!-- ═══════════════════════════════════════════
      RESPONSIBILITY ANNOTATIONS — Cluster A
      ═══════════════════════════════════════════ -->
+<!-- MaaS responsibility bracket (top — entry point) -->
+<rect x="30" y="168" width="8" height="96" rx="3" fill="#8957e5"/>
+<text x="22" y="216" text-anchor="middle" fill="#8957e5" font-size="7" font-weight="700" transform="rotate(-90,22,216)">MAAS LAYER</text>
+
 <!-- Grid responsibility bracket -->
-<rect x="30" y="168" width="8" height="148" rx="3" fill="#d29922"/>
-<text x="22" y="242" text-anchor="middle" fill="#d29922" font-size="7" font-weight="700" transform="rotate(-90,22,242)">GRID LAYER</text>
-
-<!-- MaaS responsibility bracket -->
-<rect x="30" y="330" width="8" height="200" rx="3" fill="#8957e5"/>
-<text x="22" y="430" text-anchor="middle" fill="#8957e5" font-size="7" font-weight="700" transform="rotate(-90,22,430)">MAAS LAYER</text>
-
-<!-- Grid functions callout -->
-<rect x="85" y="536" width="160" height="50" rx="5" fill="#2a1f0d" stroke="#d29922" stroke-width="1" opacity="0.8"/>
-<text x="165" y="550" text-anchor="middle" fill="#d29922" font-size="7" font-weight="600">GRID HANDLES</text>
-<text x="165" y="561" text-anchor="middle" fill="#8b949e" font-size="7">API key auth (identity + region)</text>
-<text x="165" y="571" text-anchor="middle" fill="#8b949e" font-size="7">Geo fencing · Site selection</text>
-<text x="165" y="581" text-anchor="middle" fill="#8b949e" font-size="7">Cross-site routing · Model discovery</text>
+<rect x="30" y="278" width="8" height="140" rx="3" fill="#d29922"/>
+<text x="22" y="348" text-anchor="middle" fill="#d29922" font-size="7" font-weight="700" transform="rotate(-90,22,348)">GRID LAYER</text>
 
 <!-- MaaS functions callout -->
-<rect x="260" y="536" width="160" height="50" rx="5" fill="#1c1340" stroke="#8957e5" stroke-width="1" opacity="0.8"/>
-<text x="340" y="550" text-anchor="middle" fill="#8957e5" font-size="7" font-weight="600">MAAS HANDLES</text>
-<text x="340" y="561" text-anchor="middle" fill="#8b949e" font-size="7">Auth policies (Authorino/subscription)</text>
-<text x="340" y="571" text-anchor="middle" fill="#8b949e" font-size="7">Token rate limiting (Limitador)</text>
-<text x="340" y="581" text-anchor="middle" fill="#8b949e" font-size="7">Credential injection · External models</text>
+<rect x="85" y="566" width="160" height="55" rx="5" fill="#1c1340" stroke="#8957e5" stroke-width="1" opacity="0.8"/>
+<text x="165" y="579" text-anchor="middle" fill="#8957e5" font-size="7" font-weight="600">MAAS HANDLES (ingress clusters only)</text>
+<text x="165" y="590" text-anchor="middle" fill="#8b949e" font-size="7">API key auth (Authorino → maas-api)</text>
+<text x="165" y="600" text-anchor="middle" fill="#8b949e" font-size="7">Token rate limiting (Limitador)</text>
+<text x="165" y="610" text-anchor="middle" fill="#8b949e" font-size="7">Credential injection · External models · Metering</text>
+
+<!-- Grid functions callout -->
+<rect x="260" y="566" width="160" height="55" rx="5" fill="#2a1f0d" stroke="#d29922" stroke-width="1" opacity="0.8"/>
+<text x="340" y="579" text-anchor="middle" fill="#d29922" font-size="7" font-weight="600">GRID HANDLES (all clusters)</text>
+<text x="340" y="590" text-anchor="middle" fill="#8b949e" font-size="7">Routing · Model selection · Site selection</text>
+<text x="340" y="600" text-anchor="middle" fill="#8b949e" font-size="7">Cross-site mTLS routing</text>
+<text x="340" y="610" text-anchor="middle" fill="#8b949e" font-size="7">SWIM gossip · Model discovery</text>
 
 <!-- ═══════════════════════════════════════════
      CROSS-CLUSTER: Grid Gateway mTLS
      ═══════════════════════════════════════════ -->
-<path d="M415,206 L535,206" fill="none" stroke="#d29922" stroke-width="2" marker-end="url(#ah-amber)"/>
-<path d="M535,206 L415,206" fill="none" stroke="#d29922" stroke-width="2" marker-end="url(#ah-amber)" opacity="0"/>
-<text x="475" y="200" text-anchor="middle" fill="#d29922" font-size="7" font-weight="600">cross-site mTLS</text>
+<path d="M415,268 L535,268" fill="none" stroke="#d29922" stroke-width="2" marker-end="url(#ah-amber)"/>
+<text x="475" y="262" text-anchor="middle" fill="#d29922" font-size="7" font-weight="600">cross-site mTLS</text>
 
-<path d="M865,206 L985,206" fill="none" stroke="#d29922" stroke-width="2" marker-end="url(#ah-amber)"/>
-<text x="925" y="200" text-anchor="middle" fill="#d29922" font-size="7" font-weight="600">cross-site mTLS</text>
+<path d="M865,268 L985,192" fill="none" stroke="#d29922" stroke-width="2" marker-end="url(#ah-amber)"/>
+<text x="925" y="222" text-anchor="middle" fill="#d29922" font-size="7" font-weight="600">cross-site mTLS</text>
 
 <!-- ═══════════════════════════════════════════
      CROSS-CLUSTER: Grid Operator gossip
      ═══════════════════════════════════════════ -->
-<path d="M240,290 Q400,550 612,290" fill="none" stroke="#8957e5" stroke-width="1.5" stroke-dasharray="6,3"/>
-<path d="M612,290 Q850,550 1062,290" fill="none" stroke="#8957e5" stroke-width="1.5" stroke-dasharray="6,3"/>
-<path d="M240,290 Q650,600 1062,290" fill="none" stroke="#8957e5" stroke-width="1.5" stroke-dasharray="6,3" opacity="0.4"/>
+<path d="M240,354 Q400,560 612,354" fill="none" stroke="#8957e5" stroke-width="1.5" stroke-dasharray="6,3"/>
+<path d="M612,354 Q850,520 1062,284" fill="none" stroke="#8957e5" stroke-width="1.5" stroke-dasharray="6,3"/>
+<path d="M240,354 Q650,580 1062,284" fill="none" stroke="#8957e5" stroke-width="1.5" stroke-dasharray="6,3" opacity="0.4"/>
 
-<!-- SWIM label centered between clusters, below the curves -->
-<rect x="530" y="542" width="340" height="38" rx="6" fill="#1c1340" stroke="#8957e5" stroke-width="1" opacity="0.9"/>
-<text x="700" y="558" text-anchor="middle" fill="#8957e5" font-size="9" font-weight="600">SWIM gossip + Signals polling (mTLS)</text>
-<text x="700" y="572" text-anchor="middle" fill="#6e7681" font-size="7">Membership · Liveness · Model capabilities · Load metrics · Tenant spend</text>
+<!-- SWIM label -->
+<rect x="530" y="568" width="340" height="38" rx="6" fill="#1c1340" stroke="#8957e5" stroke-width="1" opacity="0.9"/>
+<text x="700" y="584" text-anchor="middle" fill="#8957e5" font-size="9" font-weight="600">SWIM gossip + Signals polling (mTLS)</text>
+<text x="700" y="598" text-anchor="middle" fill="#6e7681" font-size="7">Membership · Liveness · Model capabilities · Load metrics · Tenant spend</text>
 
 <!-- ═══════════════════════════════════════════
-     SHARED DB
+     SHARED DB (ingress clusters only)
      ═══════════════════════════════════════════ -->
-<line x1="60" y1="620" x2="1340" y2="620" stroke="#30363d" stroke-width="1" stroke-dasharray="3,3" opacity="0.5"/>
-<text x="700" y="638" text-anchor="middle" fill="#6e7681" font-size="9">SHARED SERVICES</text>
+<line x1="60" y1="650" x2="1340" y2="650" stroke="#30363d" stroke-width="1" stroke-dasharray="3,3" opacity="0.5"/>
+<text x="700" y="668" text-anchor="middle" fill="#6e7681" font-size="9">SHARED SERVICES (ingress clusters only)</text>
 
-<rect x="440" y="650" width="520" height="55" rx="8" fill="#0d2626" stroke="#39d2c0" stroke-width="2" filter="url(#sh)"/>
-<ellipse cx="475" cy="672" rx="14" ry="6" fill="none" stroke="#39d2c0" stroke-width="1"/>
-<path d="M461,672 L461,690 Q461,696 475,696 Q489,696 489,690 L489,672" fill="none" stroke="#39d2c0" stroke-width="1"/>
-<text x="700" y="670" text-anchor="middle" fill="#39d2c0" font-size="9" font-weight="600">SHARED DATABASE</text>
-<text x="700" y="685" text-anchor="middle" fill="#e6edf3" font-size="11" font-weight="700">Shared PostgreSQL</text>
-<text x="700" y="698" text-anchor="middle" fill="#8b949e" font-size="8">API keys · Subscriptions · User quotas</text>
+<rect x="440" y="680" width="520" height="55" rx="8" fill="#0d2626" stroke="#39d2c0" stroke-width="2" filter="url(#sh)"/>
+<ellipse cx="475" cy="702" rx="14" ry="6" fill="none" stroke="#39d2c0" stroke-width="1"/>
+<path d="M461,702 L461,720 Q461,726 475,726 Q489,726 489,720 L489,702" fill="none" stroke="#39d2c0" stroke-width="1"/>
+<text x="700" y="700" text-anchor="middle" fill="#39d2c0" font-size="9" font-weight="600">SHARED DATABASE (ingress clusters only)</text>
+<text x="700" y="715" text-anchor="middle" fill="#e6edf3" font-size="11" font-weight="700">Shared PostgreSQL</text>
+<text x="700" y="728" text-anchor="middle" fill="#8b949e" font-size="8">API keys · Subscriptions · Ingress clusters only — inference clusters not connected</text>
 
-<!-- DB connections -->
-<path d="M162,360 L162,540 Q162,580 400,650" fill="none" stroke="#39d2c0" stroke-width="1.2" stroke-dasharray="4,3" marker-end="url(#ah-teal)" opacity="0.5"/>
-<path d="M612,360 L612,540 Q612,600 612,646" fill="none" stroke="#39d2c0" stroke-width="1.2" stroke-dasharray="4,3" marker-end="url(#ah-teal)" opacity="0.5"/>
-<path d="M1062,360 L1062,540 Q1062,580 1000,650" fill="none" stroke="#39d2c0" stroke-width="1.2" stroke-dasharray="4,3" marker-end="url(#ah-teal)" opacity="0.5"/>
+<!-- DB connections ( ingress clusters only, NOT inference cluster) -->
+<path d="M337,354 L337,560 Q337,620 440,680" fill="none" stroke="#39d2c0" stroke-width="1.2" stroke-dasharray="4,3" marker-end="url(#ah-teal)" opacity="0.5"/>
+<path d="M787,354 L787,560 Q787,640 787,676" fill="none" stroke="#39d2c0" stroke-width="1.2" stroke-dasharray="4,3" marker-end="url(#ah-teal)" opacity="0.5"/>
+<!-- no DB connection from Cluster C (inference) -->
 
 <!-- ═══════════════════════════════════════════
      OBSERVABILITY
      ═══════════════════════════════════════════ -->
-<rect x="440" y="720" width="520" height="50" rx="8" fill="#2a1a0a" stroke="#f0883e" stroke-width="1.5" filter="url(#sh)"/>
-<text x="700" y="740" text-anchor="middle" fill="#f0883e" font-size="9" font-weight="600">OBSERVABILITY · ACM</text>
-<text x="700" y="755" text-anchor="middle" fill="#e6edf3" font-size="11" font-weight="700">Thanos · Grafana</text>
-<text x="700" y="765" text-anchor="middle" fill="#8b949e" font-size="8">Multi-cluster Observability Operator · Prometheus aggregation</text>
+<rect x="440" y="750" width="520" height="50" rx="8" fill="#2a1a0a" stroke="#f0883e" stroke-width="1.5" filter="url(#sh)"/>
+<text x="700" y="770" text-anchor="middle" fill="#f0883e" font-size="9" font-weight="600">OBSERVABILITY · ACM</text>
+<text x="700" y="785" text-anchor="middle" fill="#e6edf3" font-size="11" font-weight="700">Thanos · Grafana</text>
+<text x="700" y="795" text-anchor="middle" fill="#8b949e" font-size="8">Multi-cluster Observability Operator · Prometheus aggregation · All clusters</text>
 
 <!-- ═══════════════════════════════════════════
      LEGEND
      ═══════════════════════════════════════════ -->
-<g transform="translate(60, 800)">
+<g transform="translate(60, 830)">
   <text x="0" y="12" fill="#8b949e" font-size="9" font-weight="600">LEGEND</text>
 
   <line x1="60" y1="8" x2="83" y2="8" stroke="#58a6ff" stroke-width="2"/>
   <text x="88" y="12" fill="#8b949e" font-size="8">Client / DNS</text>
 
-  <line x1="160" y1="8" x2="183" y2="8" stroke="#d29922" stroke-width="2"/>
-  <text x="188" y="12" fill="#8b949e" font-size="8">Grid Gateway</text>
+  <line x1="160" y1="8" x2="183" y2="8" stroke="#8957e5" stroke-width="2"/>
+  <text x="188" y="12" fill="#8b949e" font-size="8">MaaS Gateway / MaaS</text>
 
-  <line x1="275" y1="8" x2="298" y2="8" stroke="#8957e5" stroke-width="2"/>
-  <text x="303" y="12" fill="#8b949e" font-size="8">Grid Operator / MaaS</text>
+  <line x1="310" y1="8" x2="333" y2="8" stroke="#d29922" stroke-width="2"/>
+  <text x="338" y="12" fill="#8b949e" font-size="8">Grid Gateway</text>
 
   <line x1="420" y1="8" x2="443" y2="8" stroke="#bc8cff" stroke-width="1.5" stroke-dasharray="4,3"/>
-  <text x="448" y="12" fill="#8b949e" font-size="8">Auth / Metering</text>
+  <text x="448" y="12" fill="#8b949e" font-size="8">Auth / Overlay</text>
 
   <line x1="535" y1="8" x2="558" y2="8" stroke="#39d2c0" stroke-width="1.5" stroke-dasharray="4,3"/>
   <text x="563" y="12" fill="#8b949e" font-size="8">Database / Inference</text>
@@ -379,23 +332,23 @@ svg{width:100%;height:auto;display:block}
   <line x1="800" y1="8" x2="823" y2="8" stroke="#f0883e" stroke-width="2"/>
   <text x="828" y="12" fill="#8b949e" font-size="8">Kuadrant / Observability</text>
 
-  <text x="0" y="32" fill="#6e7681" font-size="8">All clusters run identical stacks. Hub is a DNS designation. Any cluster can be promoted.</text>
+  <text x="0" y="32" fill="#6e7681" font-size="8">Ingress clusters: MaaS GW + Grid GW + maas-api. Inference clusters: Grid GW + standalone GW + inference only.</text>
 </g>
 
 <!-- ═══════════════════════════════════════════
      REQUEST FLOW ANNOTATION
      ═══════════════════════════════════════════ -->
-<rect x="60" y="850" width="1280" height="55" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1"/>
-<text x="700" y="868" text-anchor="middle" fill="#e6edf3" font-size="10" font-weight="600">Request Flow</text>
-<text x="76" y="884" fill="#58a6ff" font-size="8" font-weight="600">1</text>
-<text x="90" y="884" fill="#8b949e" font-size="8">Consumer sends POST /v1/chat/completions with API key</text>
-<text x="400" y="884" fill="#d29922" font-size="8" font-weight="600">2</text>
-<text x="414" y="884" fill="#8b949e" font-size="8">Grid Gateway: api_key_auth → geo fencing → site selection</text>
-<text x="800" y="884" fill="#8957e5" font-size="8" font-weight="600">3</text>
-<text x="814" y="884" fill="#8b949e" font-size="8">MaaS Gateway: auth (Authorino) → rate limit → credential injection</text>
-<text x="76" y="898" fill="#39d2c0" font-size="8" font-weight="600">4</text>
-<text x="90" y="898" fill="#8b949e" font-size="8">EPP picks pod → vLLM serves inference (or MaaS routes to external API)</text>
-<text x="600" y="898" fill="#6e7681" font-size="8">API key validates on any cluster (shared DB) · Same key, same URL, any site</text>
+<rect x="60" y="880" width="1280" height="60" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1"/>
+<text x="700" y="898" text-anchor="middle" fill="#e6edf3" font-size="10" font-weight="600">Request Flow (MaaS-first)</text>
+<text x="76" y="914" fill="#58a6ff" font-size="8" font-weight="600">1</text>
+<text x="90" y="914" fill="#8b949e" font-size="8">Consumer sends POST /v1/chat/completions with API key to MaaS GW (ingress)</text>
+<text x="470" y="914" fill="#8957e5" font-size="8" font-weight="600">2</text>
+<text x="484" y="914" fill="#8b949e" font-size="8">MaaS GW: auth (Authorino) → rate limit (Limitador) → cred inject</text>
+<text x="76" y="928" fill="#d29922" font-size="8" font-weight="600">3</text>
+<text x="90" y="928" fill="#8b949e" font-size="8">Grid GW: model selection → site selection → cross-site routing (mTLS)</text>
+<text x="470" y="928" fill="#39d2c0" font-size="8" font-weight="600">4</text>
+<text x="484" y="928" fill="#8b949e" font-size="8">Standalone GW → EPP → vLLM (or MaaS routes external API directly)</text>
+<text x="940" y="928" fill="#6e7681" font-size="8">API key validates on any ingress cluster (shared DB)</text>
 
 </svg>
 </div>
